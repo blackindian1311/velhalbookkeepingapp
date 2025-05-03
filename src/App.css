@@ -1,38 +1,375 @@
-.App {
-  text-align: center;
+/* App.css */
+
+body { 
+font-family: Arial, sans-serif;  
+margin: 0;  
+padding: 0;  
+font-family: 'Bodoni Moda', serif;  
+background-color: #e2d8b1;
+text-decoration: white;
+
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
-.App-header {
-  background-color: #282c34;
+.home-page {  
+  display: -webkit-flex;  
   min-height: 100vh;
+  margin-left: 150px;
+}
+
+
+
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: -150px; 
+  width: 150px;
+  height: 100%;
+  background-color: #e2d8b1;
+  transition: left 0.6s ease;
+  z-index: 1000;
+  align-items: center;
+  text-align: center;
+  padding-top: 40px;
+  padding-left: 10px;
+  padding-right: 10px;
+  
+}
+.sidebar {
+  overflow-y: auto; /* Enable vertical scrolling */
+}
+
+.sidebar::-webkit-scrollbar {
+  display: none; /* Hide the scrollbar for WebKit browsers, including Safari */
+}
+
+.sidebar {
+  -ms-overflow-style: none; /* Hide scrollbar for Internet Explorer and Edge */
+  scrollbar-width: none; /* Hide scrollbar for Firefox */
+}
+
+.sidebar.visible {
+  left: 0;
+}
+
+.sidebar button {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  background-color: #1e2c3f;  
+  color: white;
+  border: none;
+  cursor: pointer;
+  padding-top: 40px;
+  padding-bottom: 40px;
+  text-align: center;
+  font-size: medium;
+  margin-bottom: 15px;
+}
+
+.sidebar button.active {
+  background-color: #555;
+}
+
+.sidebar button:hover {   
+  background-color: #2e3d52;  
+  color: white;
+  transform: scale(1.1)}
+
+.content {  
+  flex-grow: 1;  
+  padding: 20px;  
+  ;
+}
+
+
+
+h2 {  
+margin-top: 0; 
+ text-decoration-color: #2e3d52;
+}
+
+.total-overview{  
+  background-color:#2e3d52;    
+  padding: 20px;  
+  margin-bottom: 20px;  
+  border-radius: 10px;  
+  box-shadow: 0px 0px 5px (0, 0, 0, 0.1);  
+  display: flex;  
+  flex-direction: column;  
+  justify-content: center;  
+  align-items: center;  
+  min-height: 10vh;  
+  font-size: 1.4rem;  
+ ;
+}
+
+.total-price-text{
+  font-size: 3rem;
+  font-weight: bold;
+  margin: 20px 0;
+  color: #2e3d52;
+}
+.balance-section,
+.pay-section,
+.history-section
+ {
+  background-color: #2e3d52;
+  padding: 20px;
+  margin-bottom: 20px;
+  border-radius: 10px;
   display: flex;
   flex-direction: column;
-  align-items: center;
   justify-content: center;
-  font-size: calc(10px + 2vmin);
+  align-items: center;
+  min-height: 10vh;
+  font-size: 1.6rem;
+  color: #ffffff;
+}
+
+input,
+select {
+  display: block;
+  margin: 10px auto; /* Center align horizontally */
+  padding: 10px;
+  width: 50%; /* Adjust width as needed */
+  border-radius: 10px;
+  font-size: 1.2rem;
+    color: #1e3a5f;
+  }
+
+
+.newParty-button {
+  padding: 20px 90px;
+  font-size: 24px;
+  margin-top: 1px;
+  gap: 1px;
+}
+
+.addPurchase-button {
+  padding: 15px 85px;
+  font-size: 24px;
+  margin-top: 1px;
+  gap: 1px;
+  position: relative;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  border-radius: 15px;
+}
+
+button.medium-button {
+  padding: 10px 15px;
+  font-size: 16px;
+  margin-top: 10px;
+
+}
+
+button.large-button {
+  padding: 12px 20px;
+  font-size: 18px;
+  margin-top: 15px;
+  color: #2e3d52;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+button.large-button:hover { 
+  background-color: #2e3d52;
+  color: #2e3d52;
+}
+
+.history-section ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+.history-section li {
+  margin-bottom: 10px;
+  padding: 15px;
+  border-radius: 6px;
+  box-shadow: 0px 0px 5px #2e3d52(0, 0, 0, 0.05);
+}
+
+.main-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
+
+
+.transaction-table-wrapper {
+  margin-top: 20px;
+  background-color: #2e3d52;
+  padding: 20px;
+  border-radius: 10px;
   color: white;
 }
 
-.App-link {
-  color: #61dafb;
+.transaction-table {
+  width: 100%;
+  margin: auto;
+  border-collapse: collapse;
+  background-color: #2e3d52;
+  color: white;
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.transaction-table th,
+.transaction-table td {
+  border: 1px solid #ffffff;
+  padding: 10px;
+  text-align: center;
+  text-decoration: white;
+  background-color: #2e3d52;
 }
+
+.transaction-table th {
+  background-color: #2e3d52;
+  color: white;
+  text-decoration: white;
+}
+
+.transaction-table td:nth-child(7) {
+  background-color: #2e3d52;
+  color: white;
+  text-decoration: #ffffff;
+}
+
+.partyInfoTable-wrapper {
+  margin-top: 20px;
+  background-color: #2e3d52;
+  padding: 20px;
+  border-radius: 10px;
+  color: white;
+}
+
+.partyInfoTable {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: #2e3d52;
+  text-decoration: white;
+}
+
+.partyInfoTable th,
+.partyInfoTable td {
+  border: 1px solid #ffffff;
+  padding: 10px;
+  text-align: center;
+  text-decoration: white;
+  background-color: #2e3d52;
+}
+
+.partyInfoTable th {
+  background-color: #2e3d52;
+  color: white;
+  text-decoration: white;
+}
+
+
+
+.partyDetails {
+   color: white;
+}
+.input {
+  width: 11%;
+  padding: 8px;
+  margin: 5px 0;
+  border-radius: 5px;
+  border: 1px solid #1e3a5f;
+
+}
+.sidebar button.active {
+  background-color: #1e3a5f;
+  color: white;
+
+}
+h1 {
+  color: #1e2c3f;
+  text-align: center;  
+  font-size: 75px;  
+  margin-bottom: 40px;
+}
+
+h2{
+  color: #ffffff;
+  text-align: center;  
+  font-size: 60px;  
+  margin-bottom: 40px;
+}
+
+.form-container {
+  background-color: #1e3a5f; /* the blue color */
+  padding: 30px;
+  border-radius: 8px;
+  width: 70%;
+  margin: auto;
+  color: #ffffff;
+  align-items: center;
+  justify-content: center;
+  
+}
+
+.return-section {
+  color: #1e3a5f;
+  text-decoration: #ffffff;
+}
+
+h3{
+  color: #1e3a5f;
+  text-align: center;  
+  font-size: 60px;  
+  margin-bottom: 40px;
+}
+h4 {
+  color: #2e3d52;
+  text-align: center;  
+  font-size: 50px;  
+  margin-bottom: 40px;
+}
+  
+h5 {
+  color: #2e3d52;
+  text-align: center;  
+  font-size: 30px;  
+  margin-bottom: 40px;
+}
+h6 {
+  color: #ffffff;
+  text-align: center;  
+  font-size: 30px;  
+  margin-bottom: 40px;
+}
+h7 {
+  color: #1e2c3f;
+  text-align: center;  
+  font-size: 60px;  
+  margin-bottom: 40px;
+  text-align: center;
+}
+.form-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 15px;
+  text-align: left;
+}
+
+.party-input {
+  padding: 20px 90px;
+  font-size: 24px;
+  margin-top: 1px;
+  gap: 1px;
+  position: relative;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  position: center;
+
+  
+}
+
+  
+  
+
+
