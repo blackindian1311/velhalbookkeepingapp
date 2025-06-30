@@ -5,13 +5,12 @@ import './App.css';
 const HomePage = () => {
   async function sendDataToSheet(data) {
     try {
-      const response = await fetch('https://script.google.com/macros/s/AKfycbyU3zCMQiRsxl-YP126J_gx6lgqTZOB403466TFlknhKlfI7fOgInVqhoezp6JNf6Jb/exec', {
+      await fetch('https://script.google.com/macros/s/AKfycbyirriM1Pzzl1FNPhQWSKj9CVMUx9C5Ch9tlV6wLHgbJMuRyVv7e1z75KsuNndJoKAO/exec', {
         method: 'POST',
-        mode: 'no-cors', // Important for Google Apps Script
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(data)
       });
   
       console.log('Data sent successfully');
@@ -46,7 +45,9 @@ const HomePage = () => {
     returnAmount: '',
     returnDate: ''
   });
-  const [searchPartyInfo, setSearchPartyInfo] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(null);
+
 
   useEffect(() => {
     const stored = localStorage.getItem('partiesInfo');
@@ -75,6 +76,23 @@ const HomePage = () => {
   window.addEventListener('mousemove', handleMouseMove);
   return () => window.removeEventListener('mousemove', handleMouseMove);
 }, []);
+useEffect(() => {
+  const fetchInitialData = async () => {
+    try {
+      const response = await fetch('https://script.google.com/macros/s/AKfycbyirriM1Pzzl1FNPhQWSKj9CVMUx9C5Ch9tlV6wLHgbJMuRyVv7e1z75KsuNndJoKAO/exec');
+      if (!response.ok) throw new Error('Network response was not ok');
+      const data = await response.json();
+      console.log(data);
+    } catch (error) {
+      console.error("Failed to fetch data:", error);
+    }
+  };
+  
+
+  fetchInitialData();
+}, []);
+
+
 
 
   
@@ -109,7 +127,6 @@ const HomePage = () => {
       alert('Please fill all fields.');
     }
   };
-
   const calculateRunningBalance = (transactions, newTransaction) => {
     const all = [...transactions, newTransaction];
     all.sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -122,8 +139,6 @@ const HomePage = () => {
     }
     return balance;
   };
-  
-  // --- handleAddPurchase ---
   const handleAddPurchase = async () => {
     const { amount, billNumber, date } = form;
     if (amount && billNumber && date && selectedParty) {
@@ -164,7 +179,6 @@ const HomePage = () => {
       alert('Fill all purchase fields.');
     }
   };
-  
   const handleAddPayment = async () => {
     const { payment, paymentMethod, date } = form;
     const amountToPay = parseFloat(payment);
@@ -212,10 +226,6 @@ const HomePage = () => {
   
     await sendDataToSheet(paymentData);
   };
-  
-  
-  
-  // --- handleAddReturn ---
   const handleAddReturn = async () => {
     const { returnAmount, returnDate } = form;
     if (returnAmount && returnDate && selectedParty) {
@@ -246,7 +256,6 @@ const HomePage = () => {
       alert('Fill all return fields.');
     }
   };
-
   const handleDeposit = async () =>{
     const amount = parseFloat(depositAmount);
     if(!isNaN(amount) && amount > 0){
@@ -261,7 +270,7 @@ const HomePage = () => {
     <div className="home-page">
       
       <div className={`sidebar ${sidebarVisible ? 'visible' : ''}`}>
-      <h7>NRV</h7>
+      <h6>NRV</h6>
         {['home', 'purchase', 'pay', 'return', 'balance', 'party', 'bank'].map(btn => (
           <button key={btn} style={{ marginBottom: '15px' }} onClick={() => setView(btn)}>
           {btn.charAt(0).toUpperCase() + btn.slice(1)}
@@ -293,7 +302,6 @@ const HomePage = () => {
             <input type="text" placeholder="Bill No" value={form.billNumber} onChange={e => setForm({ ...form, billNumber: e.target.value })} />
             <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} />
             <button className='addPurchase-button'onClick={handleAddPurchase}>Add Purchase</button>
-            <button onClick={() => sendDataToSheet(form)}>Send Data</button>
             {form.amount && (
                 <div style={{ marginTop: '10px' }}>
                   <p>GST (5%): ₹{(parseFloat(form.amount) * 0.05).toFixed(2)}</p>
