@@ -203,53 +203,64 @@ useEffect(() => {
     }
   };
   const handleAddPayment = async () => {
-    const { payment, paymentMethod, date } = form;
-    const amountToPay = parseFloat(payment);
-  
-    // Basic validation
-    if (!payment || !paymentMethod || !date || !selectedParty) {
-      alert('Fill all payment fields.');
-      return;
-    }
-  
-    // Bank balance check for non-cash payments
-    if (paymentMethod !== 'Cash' && bankBalance < amountToPay) {
-      alert('Not Enough Money in the Bank');
-      return;
-    }
-  
-    const newPayment = {
-      type: 'payment',
-      amount: amountToPay,
-      method: paymentMethod,
-      party: selectedParty,
-      date
-    };
-  
-    const balance = calculateRunningBalance(
-      allTransactions.filter(tx => tx.party === selectedParty),
-      newPayment
-    );
-    newPayment.balance = balance;
-  
-    setPaymentTransactions(prev => [...prev, newPayment]);
-    setForm(prev => ({ ...prev, payment: '', paymentMethod: '', date: '' }));
-  
-    if (paymentMethod !== 'Cash') {
-      setBankBalance(prev => prev - amountToPay);
-    }
-  
-    const paymentData = {
-      date: newPayment.date,
-      party: newPayment.party,
-      method: newPayment.method,
-      amount: newPayment.amount,
-      balance: newPayment.balance
-    };
-  
-    sendDataToSheet({ type: "payment", ...paymentData });
+  const { payment, paymentMethod, date } = form;
+  const amountToPay = parseFloat(payment);
 
+  if (!payment || !paymentMethod || !date || !selectedParty) {
+    alert('Fill all payment fields.');
+    return;
+  }
+
+  // Check if party owes money
+  if (totalOwed <= 0) {
+    alert("This party has no outstanding balance.");
+    return;
+  }
+
+  // Don't allow overpaying
+  if (amountToPay > totalOwed) {
+    alert(`Cannot pay more than owed. This party only owes ₹${totalOwed.toFixed(2)}.`);
+    return;
+  }
+
+  // Check bank balance if payment is not Cash
+  if (paymentMethod !== 'Cash' && bankBalance < amountToPay) {
+    alert('Not Enough Money in the Bank');
+    return;
+  }
+
+  const newPayment = {
+    type: 'payment',
+    amount: amountToPay,
+    method: paymentMethod,
+    party: selectedParty,
+    date
   };
+
+  const balance = calculateRunningBalance(
+    allTransactions.filter(tx => tx.party === selectedParty),
+    newPayment
+  );
+  newPayment.balance = balance;
+
+  setPaymentTransactions(prev => [...prev, newPayment]);
+  setForm(prev => ({ ...prev, payment: '', paymentMethod: '', date: '' }));
+
+  if (paymentMethod !== 'Cash') {
+    setBankBalance(prev => prev - amountToPay);
+  }
+
+  const paymentData = {
+    date: newPayment.date,
+    party: newPayment.party,
+    method: newPayment.method,
+    amount: newPayment.amount,
+    balance: newPayment.balance
+  };
+
+  sendDataToSheet({ type: "payment", ...paymentData });
+};
+
   const handleAddReturn = async () => {
     const { returnAmount, returnDate } = form;
     if (returnAmount && returnDate && selectedParty) {
