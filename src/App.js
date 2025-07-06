@@ -1,28 +1,36 @@
-import React from 'react';
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
-import HomePage from './HomePage'; // Import the HomePage component
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from './firebase';
+
+import HomePage from './HomePage';
+import Login from './Login';
 
 function App() {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  if (loading) return <div style={{ textAlign: 'center' }}>Loading...</div>;
+
   return (
     <Router>
       <Routes>
-        {/* Define a route to display the HomePage */}
-        <Route path="/" element={<HomePage />} />
+        {user ? (
+          <Route path="/*" element={<HomePage />} />
+        ) : (
+          <Route path="/*" element={<Login />} />
+        )}
       </Routes>
     </Router>
   );
 }
-document.addEventListener('DOMContentLoaded', () => {
-  const sidebarButtons = document.querySelectorAll('.sidebar button');
 
-  sidebarButtons.forEach(button => {
-    button.addEventListener('click', () => {
-      // Remove 'active' class from all buttons
-      sidebarButtons.forEach(btn => btn.classList.remove('active'));
-      
-      // Add 'active' class to the clicked button
-      button.classList.add('active');
-    });
-  });
-});
 export default App;

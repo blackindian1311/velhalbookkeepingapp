@@ -401,7 +401,7 @@ useEffect(() => {
 
         {view === 'bank' && (
           <div className="form-container">
-              <h2>Bank Balance: ${bankBalance.toFixed(2)}</h2>
+              <h2>Bank Balance:  ₹{bankBalance.toFixed(2)}</h2>
               <input
                 type="number"
                 value={depositAmount}
