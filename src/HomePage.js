@@ -1,24 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
-
+import { db } from "./firebase";
+import { collection, addDoc, getDocs } from "firebase/firestore";
 
 const HomePage = () => {
   async function sendDataToSheet(data) {
-    try {
-      await fetch('https://script.google.com/macros/s/AKfycbyirriM1Pzzl1FNPhQWSKj9CVMUx9C5Ch9tlV6wLHgbJMuRyVv7e1z75KsuNndJoKAO/exec', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data)
-      });
-  
-      console.log('Data sent successfully');
-    } catch (error) {
-      console.error('Error sending data:', error);
-    }
+  try {
+    const collectionName = {
+      party: "parties",
+      purchase: "purchases",
+      payment: "payments",
+      return: "returns"
+    }[data.type] || "unknown";
+
+    if (collectionName === "unknown") throw new Error("Unknown data type");
+
+    await addDoc(collection(db, collectionName), data);
+    console.log(`Data saved to ${collectionName} collection in Firestore`);
+  } catch (error) {
+    console.error("Error saving data to Firestore:", error);
   }
-  
+}
+
   const [view, setView] = useState('home');
   const [bankBalance, setBankBalance] = useState(0);
   const [depositAmount, setDepositAmount] = useState(''); // Input field
@@ -50,19 +53,19 @@ const HomePage = () => {
 
 
   useEffect(() => {
-    const stored = localStorage.getItem('partiesInfo');
-    if (stored) {
-      console.log("Loaded from localStorage:", JSON.parse(stored)); // ✅ Confirm loading
-      setPartiesInfo(JSON.parse(stored));
-    }
-  }, []);
-
-  useEffect(() => {
-  if (partiesInfo.length > 0) {
-    console.log("Saving to localStorage:", partiesInfo);
-    localStorage.setItem('partiesInfo', JSON.stringify(partiesInfo));
+  const fetchParties = async () => {
+  try {
+    const snapshot = await getDocs(collection(db, "parties"));
+    const parties = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    setPartiesInfo(parties);
+  } catch (error) {
+    console.error('Error fetching parties from Firestore:', error);
   }
-}, [partiesInfo]);
+};
+
+
+  fetchParties();
+}, []);
 
   useEffect(() => {
   const handleMouseMove = (e) => {
@@ -78,24 +81,27 @@ const HomePage = () => {
 }, []);
 useEffect(() => {
   const fetchInitialData = async () => {
-    try {
-      const response = await fetch('https://script.google.com/macros/s/AKfycbyirriM1Pzzl1FNPhQWSKj9CVMUx9C5Ch9tlV6wLHgbJMuRyVv7e1z75KsuNndJoKAO/exec');
-      if (!response.ok) throw new Error('Network response was not ok');
-      const data = await response.json();
-      console.log(data);
-    } catch (error) {
-      console.error("Failed to fetch data:", error);
-    }
-  };
-  
+  try {
+    const snapshot = await getDocs(collection(db, "purchases"));
+    const purchaseData = snapshot.docs.map(doc => ({ id: doc.id, type: 'purchase', ...doc.data() }));
+
+    const snapshot2 = await getDocs(collection(db, "payments"));
+    const paymentData = snapshot2.docs.map(doc => ({ id: doc.id, type: 'payment', ...doc.data() }));
+
+    const snapshot3 = await getDocs(collection(db, "returns"));
+    const returnData = snapshot3.docs.map(doc => ({ id: doc.id, type: 'return', ...doc.data() }));
+
+    setPurchaseTransactions(purchaseData);
+    setPaymentTransactions(paymentData);
+    setReturnTransactions(returnData);
+  } catch (error) {
+    console.error("Failed to fetch data from Firestore:", error);
+  }
+};
+
 
   fetchInitialData();
 }, []);
-
-
-
-
-  
 
   const allTransactions = [...purchaseTransactions, ...paymentTransactions, ...returnTransactions];
   const filteredTransactions = allTransactions.filter(tx => tx.party === selectedParty);
@@ -105,28 +111,44 @@ useEffect(() => {
     return total;
   }, 0);
   const totalOwedAll = allTransactions.reduce((total, tx) => {
-    if (tx.type === 'purchase') return total + tx.amount;
-    if (tx.type === 'payment' || tx.type === 'return') return total - tx.amount;
-    return total;
-  }, 0);
+  const amt = parseFloat(tx.amount || 0);
+  if (tx.type === 'purchase') return total + amt;
+  if (tx.type === 'payment' || tx.type === 'return') return total - amt;
+  return total;
+}, 0);
 
-  const handleAddParty = () => {
-    const { businessName, phoneNumber, bankNumber, contactName, contactMobile, bankName } = partyInput;
-    if (businessName && phoneNumber && bankNumber && contactName && contactMobile && bankName) {
-      const updatedParties = [...partiesInfo, partyInput];
-      setPartiesInfo(updatedParties);
-      setPartyInput({
-        businessName: '',
-        phoneNumber: '',
-        bankNumber: '',
-        contactName: '',
-        contactMobile: '',
-        bankName:'',
-      });
-    } else {
-      alert('Please fill all fields.');
-    }
-  };
+
+  const handleAddParty = async () => {
+  const { businessName, phoneNumber, bankNumber, contactName, contactMobile, bankName } = partyInput;
+
+  if (businessName && phoneNumber && bankNumber && contactName && contactMobile && bankName) {
+    const newParty = {
+      businessName,
+      phoneNumber,
+      bankNumber,
+      contactName,
+      contactMobile,
+      bankName
+    };
+
+    const updatedParties = [...partiesInfo, newParty];
+    setPartiesInfo(updatedParties);
+    setPartyInput({
+      businessName: '',
+      phoneNumber: '',
+      bankNumber: '',
+      contactName: '',
+      contactMobile: '',
+      bankName: '',
+    });
+
+   
+   sendDataToSheet({ type: "party", ...newParty });
+
+  } else {
+    alert('Please fill all fields.');
+  }
+};
   const calculateRunningBalance = (transactions, newTransaction) => {
     const all = [...transactions, newTransaction];
     all.sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -148,7 +170,7 @@ useEffect(() => {
   
       const newPurchase = {
         type: 'purchase',
-        amount: totalWithGst,
+          amount: totalWithGst,
         gstAmount: gst,
         baseAmount: amt,
         party: selectedParty,
@@ -174,7 +196,8 @@ useEffect(() => {
         totalAmount: newPurchase.amount,
         balance: newPurchase.balance
       };
-      await sendDataToSheet(purchaseData);
+      sendDataToSheet({ type: "purchase", ...purchaseData });
+
     } else {
       alert('Fill all purchase fields.');
     }
@@ -224,7 +247,8 @@ useEffect(() => {
       balance: newPayment.balance
     };
   
-    await sendDataToSheet(paymentData);
+    sendDataToSheet({ type: "payment", ...paymentData });
+
   };
   const handleAddReturn = async () => {
     const { returnAmount, returnDate } = form;
@@ -251,7 +275,9 @@ useEffect(() => {
         amount: newReturn.amount,
         balance: newReturn.balance
       };
-      await sendDataToSheet(returnData);
+
+      sendDataToSheet({ type: "return", ...returnData });
+
     } else {
       alert('Fill all return fields.');
     }
@@ -270,7 +296,8 @@ useEffect(() => {
     <div className="home-page">
       
       <div className={`sidebar ${sidebarVisible ? 'visible' : ''}`}>
-      <h6>NRV</h6>
+      <h2 className="nrv-logo">NRV</h2>
+
         {['home', 'purchase', 'pay', 'return', 'balance', 'party', 'bank'].map(btn => (
           <button key={btn} style={{ marginBottom: '15px' }} onClick={() => setView(btn)}>
           {btn.charAt(0).toUpperCase() + btn.slice(1)}
@@ -365,6 +392,7 @@ useEffect(() => {
             <input placeholder="Business" value={partyInput.businessName} onChange={e => setPartyInput({ ...partyInput, businessName: e.target.value })} />
             <input placeholder="Phone" value={partyInput.phoneNumber} onChange={e => setPartyInput({ ...partyInput, phoneNumber: e.target.value })} />
             <input placeholder="Bank" value={partyInput.bankNumber} onChange={e => setPartyInput({ ...partyInput, bankNumber: e.target.value })} />
+            <input placeholder="Bank Number" value={partyInput.bankName} onChange={e => setPartyInput({ ...partyInput, bankName: e.target.value })} />
             <input placeholder="Contact" value={partyInput.contactName} onChange={e => setPartyInput({ ...partyInput, contactName: e.target.value })} />
             <input placeholder="Mobile" value={partyInput.contactMobile} onChange={e => setPartyInput({ ...partyInput, contactMobile: e.target.value })} />
             <button onClick={handleAddParty} className='addPurchase-button'>Add Party</button>
@@ -396,6 +424,7 @@ useEffect(() => {
 const TransactionTable = ({ transactions }) => {
   let runningBalance = 0;
   return (
+   <div className="transaction-table-wrapper">
     <table className="transaction-table">
       <thead>
         <tr>
@@ -415,15 +444,17 @@ const TransactionTable = ({ transactions }) => {
               <td>{tx.type}</td>
               <td>{tx.billNumber || '-'}</td>
               <td>{tx.method || '-'}</td>
-              <td>₹{tx.amount.toFixed(2)}</td>
-              <td>{debit ? `₹${debit.toFixed(2)}` : '-'}</td>
-              <td>{credit ? `₹${credit.toFixed(2)}` : '-'}</td>
-              <td>₹{runningBalance.toFixed(2)}</td>
+              <td>₹{parseFloat(tx.amount || 0).toFixed(2)}</td>
+              <td>{debit !== undefined ? `₹${parseFloat(debit || 0).toFixed(2)}` : '-'}</td>
+              <td>{credit !== undefined ? `₹${parseFloat(credit || 0).toFixed(2)}` : '-'}</td>
+              <td>₹{parseFloat(runningBalance || 0).toFixed(2)}</td>
+
             </tr>
           );
         })}
       </tbody>
     </table>
+    </div>
   );
 };
 
@@ -497,7 +528,7 @@ const PartyInfoTable = ({ partiesInfo = [] }) => {
       <button onClick={handleExportCSV} className='addPurchase-button' >
         Export CSV
       </button>
-
+  <div className="transaction-table-wrapper">
       <table className="transaction-table">
         <thead>
           <tr>
@@ -527,24 +558,10 @@ const PartyInfoTable = ({ partiesInfo = [] }) => {
         <button disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)}>Previous</button>
         <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(prev => prev + 1)}>Next</button>
       </div>
+      </div>
     </div>
+  
   );
 };
 
-
-    
-
-document.addEventListener('DOMContentLoaded', () => {
-  const sidebarButtons = document.querySelectorAll('.sidebar button');
-
-  sidebarButtons.forEach(button => {
-    button.addEventListener('click', () => {
-      // Remove 'active' class from all buttons
-      sidebarButtons.forEach(btn => btn.classList.remove('active'));
-      
-      // Add 'active' class to the clicked button
-      button.classList.add('active');
-    });
-  });
-});
 export default HomePage;

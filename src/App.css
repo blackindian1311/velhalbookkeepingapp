@@ -54,26 +54,28 @@ text-decoration: white;
 .sidebar button {
   display: block;
   width: 100%;
-  padding: 10px;
-  background-color: #1e2a38 ;  
+  padding: 35px 10px;
+  background-color: #1e2a38;
   color: white;
   border: none;
   cursor: pointer;
-  padding-top: 40px;
-  padding-bottom: 40px;
   text-align: center;
-  font-size: medium;
-  margin-bottom: 15px;
+  font-size: 18px;
+  margin-bottom: 50px;
+  border-radius: 0; /* Make square */
+  transition: background-color 0.3s ease, transform 0.2s ease;
 }
+
+.sidebar button:hover {
+  background-color: #2e3d52;
+  transform: scale(1.05);
+}
+
+
 
 .sidebar button.active {
   background-color: #555;
 }
-
-.sidebar button:hover {   
-  background-color: #2e3d52;  
-  color: white;
-  transform: scale(1.1)}
 
 .content {  
   flex-grow: 1;  
@@ -148,14 +150,26 @@ select {
 .addPurchase-button {
   padding: 15px 85px;
   font-size: 24px;
-  margin-top: 1px;
-  gap: 1px;
-  position: relative;
-  display: block;
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   margin-left: auto;
   margin-right: auto;
-  border-radius: 15px;
+  border-radius: 0; /* Make square */
+  background-color: #1e2a38;
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.2s ease;
 }
+
+.addPurchase-button:hover {
+  transform: scale(1.05);
+  background-color: #2e3d52;
+}
+
+
 
 button.medium-button {
   padding: 10px 15px;
@@ -200,86 +214,62 @@ button.large-button:hover {
 }
 
 
-.transaction-table-wrapper {
+.transaction-table-wrapper, .partyInfoTable-wrapper {
+  overflow-x: auto;
   margin-top: 20px;
-  background-color: #2e3d52;
-  padding: 20px;
-  border-radius: 10px;
-  color: white;
 }
 
-.transaction-table {
+
+.transaction-table, .partyInfoTable {
   width: 100%;
-  margin: auto;
   border-collapse: collapse;
-  background-color: #2e3d52;
-  color: white;
+  background-color: #1e2a38;
+  color: #fff;
+  font-size: 1rem;
 }
 
 .transaction-table th,
-.transaction-table td {
-  border: 1px solid #ffffff;
-  padding: 10px;
+.transaction-table td,
+.partyInfoTable th,
+.partyInfoTable td {
+  padding: 12px 15px;
+  border: 1px solid #3a4a5a;
   text-align: center;
-  text-decoration: white;
-  background-color: #2e3d52;
 }
 
 .transaction-table th {
-  background-color: #2e3d52;
-  color: white;
-  text-decoration: white;
+  background-color: #273444;
+  font-weight: bold;
 }
 
-.transaction-table td:nth-child(7) {
-  background-color: #2e3d52;
-  color: white;
-  text-decoration: #ffffff;
-}
-
-.partyInfoTable-wrapper {
-  margin-top: 20px;
-  background-color: #2e3d52;
-  padding: 20px;
-  border-radius: 10px;
-  color: white;
-}
-
-.partyInfoTable {
-  width: 100%;
-  border-collapse: collapse;
-  background-color: #4a90e2;
-  text-decoration: white;
-}
-
-.partyInfoTable th,
-.partyInfoTable td {
-  border: 1px solid #ffffff;
-  padding: 10px;
-  text-align: center;
-  text-decoration: white;
+.transaction-table tr:nth-child(even),
+.partyInfoTable tr:nth-child(even) {
   background-color: #2e3d52;
 }
 
-.partyInfoTable th {
-  background-color: #2e3d52;
-  color: white;
-  text-decoration: white;
-}
 
 
 
 .partyDetails {
    color: white;
 }
-.input {
-  width: 11%;
-  padding: 8px;
-  margin: 5px 0;
-  border-radius: 5px;
+input,
+select,
+textarea {
+  width: 300px;              /* Fixed width for consistency */
+  max-width: 90%;            /* Responsive fallback */
+  padding: 10px;             /* Uniform padding */
+  font-size: 1.1rem;
+  border-radius: 0;          /* Square corners */
   border: 1px solid #1e3a5f;
-
+  margin: 10px auto;
+  display: block;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  color: #1e3a5f;
+  background-color: #ffffff;
 }
+
+
 .sidebar button.active {
   background-color: #1e3a5f;
   color: white;
@@ -300,16 +290,16 @@ h2{
 }
 
 .form-container {
-  background-color: #1e2a38 ; /* the blue color */
-  padding: 30px;
-  border-radius: 8px;
-  width: 70%;
-  margin: auto;
+  background-color: #1e2a38;
+  padding: 40px;
+  border-radius: 1px;
+  width: 100%;
+  max-width: 1000px;
+  margin: 0px auto;
   color: #ffffff;
-  align-items: center;
-  justify-content: center;
-  height: fit-content;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
 }
+
 
 .return-section {
   color: #1e3a5f;
@@ -342,13 +332,13 @@ h6 {
   font-size: 30px;  
   margin-bottom: 40px;
 }
-h7 {
-  
-  text-align: center;  
-  font-size: 70px;  
-  margin-bottom: 40px;
-  text-align: center;
-}q
+.nrv-logo {
+  font-size: 32px;
+  font-weight: bold;
+  color: #1e2a38;
+  margin-bottom: 30px;
+}
+
 .form-group {
   display: flex;
   flex-direction: column;
