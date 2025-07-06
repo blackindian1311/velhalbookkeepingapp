@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 import { db } from "./firebase";
 import { collection, addDoc, getDocs } from "firebase/firestore";
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 const HomePage = () => {
   async function sendDataToSheet(data) {
@@ -90,6 +91,20 @@ useEffect(() => {
 
     const snapshot3 = await getDocs(collection(db, "returns"));
     const returnData = snapshot3.docs.map(doc => ({ id: doc.id, type: 'return', ...doc.data() }));
+    const loadBankBalance = async () => {
+    const bankDoc = doc(db, "meta", "bank");
+    const snapshot = await getDoc(bankDoc);
+    if (snapshot.exists()) {
+      setBankBalance(snapshot.data().balance);
+    } else {
+      // Initialize bank balance if not found
+      await setDoc(bankDoc, { balance: 0 });
+      setBankBalance(0);
+    }
+    };
+
+    loadBankBalance();
+
 
     setPurchaseTransactions(purchaseData);
     setPaymentTransactions(paymentData);
@@ -98,6 +113,7 @@ useEffect(() => {
     console.error("Failed to fetch data from Firestore:", error);
   }
 };
+
 
 
   fetchInitialData();
@@ -247,8 +263,12 @@ useEffect(() => {
   setForm(prev => ({ ...prev, payment: '', paymentMethod: '', date: '' }));
 
   if (paymentMethod !== 'Cash') {
-    setBankBalance(prev => prev - amountToPay);
-  }
+  const updatedBalance = bankBalance - amountToPay;
+setBankBalance(updatedBalance);
+await setDoc(doc(db, "meta", "bank"), { balance: updatedBalance });
+
+}
+
 
   const paymentData = {
     date: newPayment.date,
@@ -293,15 +313,18 @@ useEffect(() => {
       alert('Fill all return fields.');
     }
   };
-  const handleDeposit = async () =>{
-    const amount = parseFloat(depositAmount);
-    if(!isNaN(amount) && amount > 0){
-      setBankBalance(bankBalance + amount)
-      setDepositAmount('');
-    } else {
-      alert('Please Enter a Valid Number');
-    }
-  };
+  const handleDeposit = async () => {
+  const amount = parseFloat(depositAmount);
+  if (!isNaN(amount) && amount > 0) {
+    const updated = bankBalance + amount;
+    setBankBalance(updated);
+    await setDoc(doc(db, "meta", "bank"), { balance: updated });
+    setDepositAmount('');
+  } else {
+    alert('Please enter a valid number');
+  }
+};
+
 
   return (
     <div className="home-page">
