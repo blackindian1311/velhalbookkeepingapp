@@ -335,17 +335,27 @@ useEffect(() => {
 
   if (!isNaN(amount) && amount > 0) {
     const updated = bankBalance + amount;
-    setBankBalance(updated);
-    setDepositAmount('');
-    setDepositDate('');
 
+    // Save to Firestore
     await setDoc(doc(db, "meta", "bank"), { balance: updated });
 
+    // Log deposit
     await addDoc(collection(db, "bankDeposits"), {
       amount,
       date: dateToUse
     });
 
+    // ✅ Refresh from Firestore instead of assuming
+    const fresh = await getDoc(doc(db, "meta", "bank"));
+    if (fresh.exists()) {
+      setBankBalance(fresh.data().balance);
+    }
+
+    // Reset form fields
+    setDepositAmount('');
+    setDepositDate('');
+
+    // Add to history list
     setDepositHistory(prev => [
       { amount, date: dateToUse },
       ...prev,
@@ -353,7 +363,8 @@ useEffect(() => {
   } else {
     alert('Please enter a valid number');
   }
-  };
+};
+
 
 
 
@@ -378,7 +389,7 @@ useEffect(() => {
         
         {view === 'home' && (
           <>
-            <h3>Total Owed to All Parties: ₹{totalOwedAll.toFixed(2)}</h3>
+            <h3>Total Owed to All Parties: ₹{(totalOwed || 0).toFixed(2)}</h3>
             <h4>All Transactions</h4>
             <TransactionTable transactions={allTransactions} />
           </>
@@ -395,12 +406,13 @@ useEffect(() => {
             <input type="text" placeholder="Bill No" value={form.billNumber} onChange={e => setForm({ ...form, billNumber: e.target.value })} />
             <input type="number" placeholder="Amount" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} />
             <button className='addPurchase-button'onClick={handleAddPurchase}>Add Purchase</button>
-            {form.amount && (
-                <div style={{ marginTop: '10px' }}>
-                  <p>GST (5%): ₹{(parseFloat(form.amount) * 0.05).toFixed(2)}</p>
-                  <p>Total after GST: ₹{Math.round(parseFloat(form.amount) * 1.05)}</p>
-                </div>
-              )}
+            {form.amount && !isNaN(parseFloat(form.amount)) && (
+              <div style={{ marginTop: '10px' }}>
+                <p>GST (5%): ₹{(parseFloat(form.amount || 0) * 0.05).toFixed(2)}</p>
+                <p>Total after GST: ₹{Math.round(parseFloat(form.amount || 0) * 1.05)}</p>
+              </div>
+            )}
+
 
           </div>
         )}
@@ -445,7 +457,8 @@ useEffect(() => {
               <option value="">Select Party</option>
               {partiesInfo.map((p, i) => <option key={i} value={p.businessName}>{p.businessName}</option>)}
             </select>
-            <p>Total Owed: ₹{totalOwed.toFixed(2)}</p>
+            <p>Total Owed: ₹{(totalOwed || 0).toFixed(2)}</p>
+
             <TransactionTable transactions={filteredTransactions} />
           </div>
         )}
@@ -482,7 +495,8 @@ useEffect(() => {
 
         {view === 'bank' && (
           <div className="form-container">
-              <h2>Bank Balance:  ₹{bankBalance.toFixed(2)}</h2>
+              <h2>Bank Balance: ₹{(bankBalance || 0).toFixed(2)}</h2>
+
               <input
                 type="number"
                 value={depositAmount}
@@ -514,7 +528,9 @@ useEffect(() => {
                 {depositHistory.map((entry, index) => (
                   <tr key={index}>
                     <td>{new Date(entry.date).toLocaleString()}</td>
-                    <td>₹{parseFloat(entry.amount).toFixed(2)}</td>
+                    <td style={{ color: entry.amount < 0 ? 'red' : 'green' }}>
+                      ₹{Math.abs(parseFloat(entry.amount || 0)).toFixed(2)} {entry.amount < 0 ? '(Out)' : '(In)'}
+                    </td>
                   </tr>
                 ))}
               </tbody>
