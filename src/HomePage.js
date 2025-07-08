@@ -51,6 +51,10 @@ const HomePage = () => {
   });
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
+  const [depositHistory, setDepositHistory] = useState([]);
+  const [depositDate, setDepositDate] = useState('');
+
+
 
 
   useEffect(() => {
@@ -104,8 +108,10 @@ useEffect(() => {
     };
 
     loadBankBalance();
-
-
+    const snapshot4 = await getDocs(collection(db, "bankDeposits"));
+    const deposits = snapshot4.docs.map(doc => doc.data());
+    deposits.sort((a, b) => new Date(b.date) - new Date(a.date)); // newest first
+    setDepositHistory(deposits);
     setPurchaseTransactions(purchaseData);
     setPaymentTransactions(paymentData);
     setReturnTransactions(returnData);
@@ -279,7 +285,7 @@ await setDoc(doc(db, "meta", "bank"), { balance: updatedBalance });
   };
 
   sendDataToSheet({ type: "payment", ...paymentData });
-};
+  };
 
   const handleAddReturn = async () => {
     const { returnAmount, returnDate } = form;
@@ -315,22 +321,38 @@ await setDoc(doc(db, "meta", "bank"), { balance: updatedBalance });
   };
   const handleDeposit = async () => {
   const amount = parseFloat(depositAmount);
+  const dateToUse = depositDate || new Date().toISOString();
+
   if (!isNaN(amount) && amount > 0) {
     const updated = bankBalance + amount;
     setBankBalance(updated);
-    await setDoc(doc(db, "meta", "bank"), { balance: updated });
     setDepositAmount('');
+    setDepositDate('');
+
+    await setDoc(doc(db, "meta", "bank"), { balance: updated });
+
+    await addDoc(collection(db, "bankDeposits"), {
+      amount,
+      date: dateToUse
+    });
+
+    setDepositHistory(prev => [
+      { amount, date: dateToUse },
+      ...prev,
+    ]);
   } else {
     alert('Please enter a valid number');
   }
-};
+  };
+
+
 
 
   return (
     <div className="home-page">
       
       <div className={`sidebar ${sidebarVisible ? 'visible' : ''}`}>
-      <h2 className="nrv-logo">NRV</h2>
+      <h1 className="nrv-logo">NRV</h1>
 
         {['home', 'purchase', 'pay', 'return', 'balance', 'party', 'bank'].map(btn => (
           <button key={btn} style={{ marginBottom: '15px' }} onClick={() => setView(btn)}>
@@ -421,7 +443,6 @@ await setDoc(doc(db, "meta", "bank"), { balance: updatedBalance });
         {view === 'party' && (
           <div className='form-container'>
             <h2>Party Info</h2>
-           <PartyInfoTable partiesInfo={partiesInfo} />
             <h2>Add New Party</h2>
             <input placeholder="Business" value={partyInput.businessName} onChange={e => setPartyInput({ ...partyInput, businessName: e.target.value })} />
             <input placeholder="Phone" value={partyInput.phoneNumber} onChange={e => setPartyInput({ ...partyInput, phoneNumber: e.target.value })} />
@@ -442,14 +463,41 @@ await setDoc(doc(db, "meta", "bank"), { balance: updatedBalance });
                 onChange={(e) => setDepositAmount(e.target.value)}
                 placeholder="Enter deposit amount"
               />
+              <input
+                type="date"
+                value={depositDate}
+                onChange={(e) => setDepositDate(e.target.value)}
+                placeholder="Enter deposit date"
+                
+              />
               <button
                 onClick={handleDeposit}
                 className="addPurchase-button"
               >
                 Deposit
               </button>
+              <h3 style={{ marginTop: '20px' }}>Deposit History</h3>
+            <table className="transaction-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {depositHistory.map((entry, index) => (
+                  <tr key={index}>
+                    <td>{new Date(entry.date).toLocaleString()}</td>
+                    <td>₹{parseFloat(entry.amount).toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
         </div>
         )}
+
+        
       </div>
     </div>
   );
