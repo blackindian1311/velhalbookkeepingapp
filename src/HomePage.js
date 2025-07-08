@@ -683,5 +683,8 @@ const PartyInfoTable = ({ partiesInfo = [] }) => {
   
   );
 };
+<button onClick={() => setSidebarVisible(!sidebarVisible)} className="menu-toggle">
+  ☰ Menu
+</button>
 
 export default HomePage;
