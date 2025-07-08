@@ -366,4 +366,19 @@ h7 {
 h1{
   text-decoration: #1e2a38;
 }
+.menu-toggle {
+  display: none;
+  background: #4CAF50;
+  color: white;
+  font-size: 18px;
+  padding: 10px;
+  border: none;
+  width: 100%;
+  text-align: left;
+}
 
+@media screen and (max-width: 768px) {
+  .menu-toggle {
+    display: block;
+  }
+}
