@@ -1,384 +1,233 @@
-/* App.css */
-
-body { 
-font-family: Arial, sans-serif;  
-margin: 0;  
-padding: 0;  
-font-family: 'Bodoni Moda', serif;  
-background-color: rgb(238, 170, 130);
-text-decoration: white;
-
+/* === Base Reset & Body === */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Bodoni Moda', serif;
+  background-color: #E4B897; /* Soft warm background */
+  color: #333;
 }
 
-.home-page {  
-  display: -webkit-flex;  
+/* === Layout Containers === */
+.home-page {
+  display: flex;
   min-height: 100vh;
   margin-left: 150px;
 }
+.content {
+  flex-grow: 1;
+  padding: 20px;
+}
 
-
-
+/* === Sidebar === */
 .sidebar {
   position: fixed;
-  top: 0;
-  left: -150px; 
-  width: 150px;
-  height: 100%;
-  background-color: rgb(238, 170, 130);
-  transition: left 0.6s ease;
+  top: 0; left: -150px;
+  width: 150px; height: 100%;
+  background: #C17B64;
+  transition: left 0.5s ease;
+  overflow-y: auto;
   z-index: 1000;
-  align-items: center;
-  text-align: center;
-  padding-top: 40px;
-  padding-left: 10px;
-  padding-right: 10px;
-  
 }
-.sidebar {
-  overflow-y: auto; /* Enable vertical scrolling */
-}
-
-.sidebar::-webkit-scrollbar {
-  display: none; /* Hide the scrollbar for WebKit browsers, including Safari */
-}
-
-.sidebar {
-  -ms-overflow-style: none; /* Hide scrollbar for Internet Explorer and Edge */
-  scrollbar-width: none; /* Hide scrollbar for Firefox */
-}
-
-.sidebar.visible {
-  left: 0;
-}
-
+.sidebar.visible { left: 0; }
+.sidebar::-webkit-scrollbar { display: none; }
 .sidebar button {
   display: block;
   width: 100%;
-  padding: 35px 10px;
-  background-color: #1e2a38;
-  color: white;
-  border: none;
-  cursor: pointer;
-  text-align: center;
-  font-size: 18px;
-  margin-bottom: 50px;
-  border-radius: 0; /* Make square */
-  transition: background-color 0.3s ease, transform 0.2s ease;
-}
-
-.sidebar button:hover {
-  background-color: #2e3d52;
-  transform: scale(1.05);
-}
-
-
-
-.sidebar button.active {
-  background-color: #555;
-}
-
-.content {  
-  flex-grow: 1;  
-  padding: 20px;  
-  ;
-}
-
-
-
-h2 {  
-margin-top: 0; 
- text-decoration-color: #1e2a38 ;
-}
-
-.total-overview{  
-  background-color:#2e3d52;    
-  padding: 20px;  
-  margin-bottom: 20px;  
-  border-radius: 10px;  
-  box-shadow: 0px 0px 5px (0, 0, 0, 0.1);  
-  display: flex;  
-  flex-direction: column;  
-  justify-content: center;  
-  align-items: center;  
-  min-height: 10vh;  
-  font-size: 1.4rem;  
- ;
-}
-
-.total-price-text{
-  font-size: 3rem;
-  font-weight: bold;
-  margin: 20px 0;
-  color: #2e3d52;
-}
-.balance-section,
-.pay-section,
-.history-section
- {
-  background-color: #2e3d52;
-  padding: 20px;
+  padding: 25px 10px;
   margin-bottom: 20px;
-  border-radius: 10px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  min-height: 10vh;
-  font-size: 1.6rem;
-  color: #ffffff;
-}
-
-input,
-select {
-  display: block;
-  margin: 10px auto; /* Center align horizontally */
-  padding: 10px;
-  width: 50%; /* Adjust width as needed */
-  border-radius: 10px;
-  font-size: 1.2rem;
-    color: #1e3a5f;
-  }
-
-
-.newParty-button {
-  padding: 20px 90px;
-  font-size: 24px;
-  margin-top: 1px;
-  gap: 1px;
-}
-
-.addPurchase-button {
-  padding: 15px 85px;
-  font-size: 24px;
-  margin-top: 20px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-left: auto;
-  margin-right: auto;
-  border-radius: 0; /* Make square */
-  background-color: #1e2a38;
-  color: white;
-  border: none;
-  cursor: pointer;
-  transition: transform 0.2s ease;
-}
-
-.addPurchase-button:hover {
-  transform: scale(1.05);
-  background-color: #2e3d52;
-}
-
-
-
-button.medium-button {
-  padding: 10px 15px;
-  font-size: 16px;
-  margin-top: 10px;
-
-}
-
-button.large-button {
-  padding: 12px 20px;
+  background: #8A4D3B;
+  color: #FFF;
   font-size: 18px;
-  margin-top: 15px;
-  color: #2e3d52;
+  border: none;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+.sidebar button:hover {
+  background: #A25C47;
+}
+.sidebar button.active {
+  background: #5F2F1A;
+}
+
+/* === Toggle/Menu Button for Mobile === */
+.menu-toggle {
+  display: none;
+  position: fixed; top: 10px; left: 10px;
+  z-index: 1100;
+  background: #8A4D3B;
+  color: #FFF;
+  font-size: 18px;
+  padding: 10px;
+  border: none;
+  border-radius: 4px;
+}
+@media (max-width: 768px) {
+  .menu-toggle { display: block; }
+}
+
+/* === Form Containers === */
+.form-container {
+  background: #8A4D3B;
+  color: #FFF;
+  padding: 30px;
+  margin: 20px auto;
+  max-width: 1000px;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+.form-container input,
+.form-container select,
+.form-container textarea {
+  width: 300px;
+  max-width: 90%;
+  padding: 10px;
+  margin: 10px auto;
+  display: block;
+  font-size: 1.1rem;
+  border-radius: 0;
+  border: 1px solid #5F2F1A;
+  color: #1e3a5f;
+}
+
+/* === Buttons === */
+.addPurchase-button, .newParty-button {
+  padding: 15px 40px;
+  font-size: 20px;
+  background: #5F2F1A;
+  color: #FFF;
+  border: none;
+  cursor: pointer;
+  display: block;
+  margin: 20px auto;
+  transition: background 0.3s, transform 0.2s;
+}
+.addPurchase-button:hover,
+.newParty-button:hover {
+  background: #40301E;
+  transform: scale(1.05);
+}
+
+/* Medium & large buttons */
+button.medium-button {
+  padding: 12px 20px;
+  font-size: 16px;
+  background: #A25C47;
+  color: #FFF;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+button.large-button {
+  padding: 15px 25px;
+  font-size: 18px;
+  background: #C17B64;
+  color: #5F2F1A;
   border: none;
   border-radius: 6px;
   cursor: pointer;
 }
-
-button.large-button:hover { 
-  background-color: #2e3d52;
-  color: #2e3d52;
+button.large-button:hover {
+  background: #AE6F52;
 }
 
-.history-section ul {
-  list-style-type: none;
-  padding: 0;
+/* === Headings === */
+h1 {
+  color: #5F2F1A;
+  text-align: center;
+  font-size: 3.5rem;
+  margin-bottom: 30px;
+}
+h2, h3, h4, h5, h6, h7 {
+  color: #5F2F1A;
+  text-align: center;
+  margin-bottom: 20px;
+}
+h2 { font-size: 2.5rem; }
+h3 { font-size: 2rem; }
+h4 { font-size: 1.8rem; text-decoration: underline; }
+h5 { font-size: 1.5rem; }
+h6 { font-size: 1.3rem; color: #FFF; }
+h7 { text-decoration: underline; }
+
+/* === Summary / Balance Sections === */
+.total-overview, .balance-section, .pay-section, .history-section {
+  background: #5F2F1A;
+  color: #FFF;
+  padding: 20px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  box-shadow: 0 0 8px rgba(0,0,0,0.1);
+  text-align: center;
 }
 
-.history-section li {
-  margin-bottom: 10px;
-  padding: 15px;
-  border-radius: 6px;
-  box-shadow: 0px 0px 5px #2e3d52(0, 0, 0, 0.05);
-}
-
-.main-content {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-}
-
-
-.transaction-table-wrapper, .partyInfoTable-wrapper {
+/* === Tables === */
+.transaction-table-wrapper,
+.partyInfoTable-wrapper {
   overflow-x: auto;
-  margin-top: 20px;
+  margin: 20px 0;
 }
-
-
-.transaction-table, .partyInfoTable {
+.transaction-table,
+.partyInfoTable {
   width: 100%;
   border-collapse: collapse;
-  background-color: #1e2a38;
-  color: #fff;
+  background: #5F2F1A;
+  color: #FFF;
   font-size: 1rem;
 }
-
 .transaction-table th,
 .transaction-table td,
 .partyInfoTable th,
 .partyInfoTable td {
   padding: 12px 15px;
-  border: 1px solid #3a4a5a;
+  border: 1px solid #8A4D47;
   text-align: center;
 }
-
-.transaction-table th {
-  background-color: #273444;
-  font-weight: bold;
+.transaction-table th,
+.partyInfoTable th {
+  background: #40301E;
+  cursor: pointer;
 }
-
 .transaction-table tr:nth-child(even),
 .partyInfoTable tr:nth-child(even) {
-  background-color: #2e3d52;
+  background: #674A30;
 }
 
-
-
-
-.partyDetails {
-   color: white;
-}
-input,
-select,
-textarea {
-  width: 300px;              /* Fixed width for consistency */
-  max-width: 90%;            /* Responsive fallback */
-  padding: 10px;             /* Uniform padding */
-  font-size: 1.1rem;
-  border-radius: 0;          /* Square corners */
-  border: 1px solid #1e3a5f;
-  margin: 10px auto;
-  display: block;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  color: #1e3a5f;
-  background-color: #ffffff;
-}
-
-
-.sidebar button.active {
-  background-color: #1e3a5f;
-  color: white;
-
-}
-h1 {
-  color: #1e2a38 ;
-  text-align: center;  
-  font-size: 75px;  
-  margin-bottom: 40px;
-}
-
-h2{
-  color: #ffffff;
-  text-align: center;  
-  font-size: 60px;  
-  margin-bottom: 40px;
-}
-
-.form-container {
-  background-color: #1e2a38;
-  padding: 40px;
-  border-radius: 1px;
-  width: 100%;
-  max-width: 1000px;
-  margin: 0px auto;
-  color: #ffffff;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-}
-
-
-.return-section {
-  color: #1e3a5f;
-  text-decoration: #ffffff;
-}
-
-h3{
-  color: #1e2a38 ;
-  text-align: center;  
-  font-size: 60px;  
-  margin-bottom: 40px;
-}
-h4 {
-  color: #1e2a38 ;
-  text-align: center;  
-  font-size: 50px;  
-  margin-bottom: 40px;
-  text-decoration: underline;
-}
-  
-h5 {
-  color:#1e2a38 ;
-  text-align: center;  
-  font-size: 30px;  
-  margin-bottom: 40px;
-}
-h6 {
-  color: #ffffff;
-  text-align: center;  
-  font-size: 30px;  
-  margin-bottom: 40px;
-}
-.nrv-logo {
-  font-size: 32px;
-  font-weight: bold;
-  color: #1e2a38;
-  margin-bottom: 30px;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  margin-bottom: 15px;
-  text-align: left;
-}
-
-.party-input {
-  padding: 20px 90px;
-  font-size: 24px;
-  margin-top: 1px;
-  gap: 1px;
-  position: relative;
-  display: block;
-  margin-left: auto;
-  margin-right: auto;
-  position: center;
-
-  
-}
-h7 {
-  text-decoration:underline;
-  text-decoration-color:#1e2a38;
-}
-h1{
-  text-decoration: #1e2a38;
-}
-.menu-toggle {
-  display: none;
-  background: #4CAF50;
-  color: white;
-  font-size: 18px;
-  padding: 10px;
-  border: none;
-  width: 100%;
-  text-align: left;
-}
-
-@media screen and (max-width: 768px) {
-  .menu-toggle {
-    display: block;
+/* === Mobile Responsiveness === */
+@media (max-width: 576px) {
+  .sidebar { width: 100%; left: -100%; }
+  .sidebar.visible { left: 0; }
+  .sidebar button { padding: 15px 10px; font-size: 16px; margin-bottom: 8px; }
+  .content { padding: 10px; margin-left: 0; }
+  .form-container, .transaction-table, .partyInfoTable {
+    width: 95%; padding: 20px; font-size: 0.9rem;
   }
+  input, select, textarea {
+    width: 90%; font-size: 1rem;
+  }
+  .addPurchase-button {
+    padding: 12px 30px; font-size: 18px;
+  }
+  h1 { font-size: 2rem; margin-bottom: 15px; }
+  h2 { font-size: 1.8rem; }
 }
+
+/* === Tablet Responsiveness === */
+@media (min-width: 577px) and (max-width: 1024px) {
+  .sidebar { width: 200px; left: -200px; }
+  .sidebar.visible { left: 0; }
+  .sidebar button { font-size: 17px; padding: 20px 10px; }
+  .content { margin-left: 0; padding: 20px; }
+  .form-container { width: 95%; padding: 30px; }
+  input, select, textarea { width: 80%; font-size: 1.1rem; }
+  .addPurchase-button { padding: 14px 50px; font-size: 20px; }
+  h1 { font-size: 2.5rem; }
+  h2, h3 { font-size: 2rem; }
+  .transaction-table, .partyInfoTable { font-size: 0.95rem; }
+}
+
+/* === Desktop / Laptop Styles === */
+@media (min-width: 1025px) {
+  .sidebar { width: 150px; left: 0; }
+  .content { margin-left: 150px; padding: 30px; }
+}
+
