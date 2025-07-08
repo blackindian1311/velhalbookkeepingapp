@@ -53,6 +53,8 @@ const HomePage = () => {
   const [fetchError, setFetchError] = useState(null);
   const [depositHistory, setDepositHistory] = useState([]);
   const [depositDate, setDepositDate] = useState('');
+  const [showPartyForm, setShowPartyForm] = useState(false);
+
 
 
 
@@ -188,7 +190,9 @@ useEffect(() => {
     if (amount && billNumber && date && selectedParty) {
       const amt = parseFloat(amount);
       const gst = amt * 0.05;
-      const totalWithGst = amt + gst;
+      const totalWithGstRaw = amt + gst;
+      const totalWithGst = Math.round(totalWithGstRaw); // Round to nearest ₹1
+
   
       const newPurchase = {
         type: 'purchase',
@@ -270,10 +274,16 @@ useEffect(() => {
 
   if (paymentMethod !== 'Cash') {
   const updatedBalance = bankBalance - amountToPay;
-setBankBalance(updatedBalance);
-await setDoc(doc(db, "meta", "bank"), { balance: updatedBalance });
+  setBankBalance(updatedBalance);
+  await setDoc(doc(db, "meta", "bank"), { balance: updatedBalance });
 
+  // ✅ NEW: Log money going out of the bank
+  await addDoc(collection(db, "bankDeposits"), {
+    amount: -amountToPay,
+    date: date
+  });
 }
+
 
 
   const paymentData = {
@@ -381,14 +391,14 @@ await setDoc(doc(db, "meta", "bank"), { balance: updatedBalance });
               <option value="">Select Party</option>
               {partiesInfo.map((p, i) => <option key={i} value={p.businessName}>{p.businessName}</option>)}
             </select>
-            <input type="number" placeholder="Amount" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} />
-            <input type="text" placeholder="Bill No" value={form.billNumber} onChange={e => setForm({ ...form, billNumber: e.target.value })} />
             <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} />
+            <input type="text" placeholder="Bill No" value={form.billNumber} onChange={e => setForm({ ...form, billNumber: e.target.value })} />
+            <input type="number" placeholder="Amount" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} />
             <button className='addPurchase-button'onClick={handleAddPurchase}>Add Purchase</button>
             {form.amount && (
                 <div style={{ marginTop: '10px' }}>
                   <p>GST (5%): ₹{(parseFloat(form.amount) * 0.05).toFixed(2)}</p>
-                  <p>Total after GST: ₹{(parseFloat(form.amount) * 1.05).toFixed(2)}</p>
+                  <p>Total after GST: ₹{Math.round(parseFloat(form.amount) * 1.05)}</p>
                 </div>
               )}
 
@@ -442,17 +452,32 @@ await setDoc(doc(db, "meta", "bank"), { balance: updatedBalance });
 
         {view === 'party' && (
           <div className='form-container'>
-            <h2>Party Info</h2>
-            <h2>Add New Party</h2>
-            <input placeholder="Business" value={partyInput.businessName} onChange={e => setPartyInput({ ...partyInput, businessName: e.target.value })} />
-            <input placeholder="Phone" value={partyInput.phoneNumber} onChange={e => setPartyInput({ ...partyInput, phoneNumber: e.target.value })} />
-            <input placeholder="Bank" value={partyInput.bankNumber} onChange={e => setPartyInput({ ...partyInput, bankNumber: e.target.value })} />
-            <input placeholder="Bank Number" value={partyInput.bankName} onChange={e => setPartyInput({ ...partyInput, bankName: e.target.value })} />
-            <input placeholder="Contact" value={partyInput.contactName} onChange={e => setPartyInput({ ...partyInput, contactName: e.target.value })} />
-            <input placeholder="Mobile" value={partyInput.contactMobile} onChange={e => setPartyInput({ ...partyInput, contactMobile: e.target.value })} />
-            <button onClick={handleAddParty} className='addPurchase-button'>Add Party</button>
+            <button
+                className="addPurchase-button"
+                onClick={() => setShowPartyForm(prev => !prev)}
+                style={{ marginBottom: '10px' }}
+              >
+                {showPartyForm ? 'Cancel' : 'Add New Party'}
+              </button>
+
+              {showPartyForm && (
+                <div className="party-form">
+                  <input placeholder="Business" value={partyInput.businessName} onChange={e => setPartyInput({ ...partyInput, businessName: e.target.value })} />
+                  <input placeholder="Phone" value={partyInput.phoneNumber} onChange={e => setPartyInput({ ...partyInput, phoneNumber: e.target.value })} />
+                  <input placeholder="Bank" value={partyInput.bankNumber} onChange={e => setPartyInput({ ...partyInput, bankNumber: e.target.value })} />
+                  <input placeholder="Bank Name" value={partyInput.bankName} onChange={e => setPartyInput({ ...partyInput, bankName: e.target.value })} />
+                  <input placeholder="Contact" value={partyInput.contactName} onChange={e => setPartyInput({ ...partyInput, contactName: e.target.value })} />
+                  <input placeholder="Mobile" value={partyInput.contactMobile} onChange={e => setPartyInput({ ...partyInput, contactMobile: e.target.value })} />
+
+                  <button onClick={handleAddParty} className="addPurchase-button">Save Party</button>
+                </div>
+              )}
+
+            <h2>All Parties</h2>
+            <PartyInfoTable partiesInfo={partiesInfo} />
           </div>
-        )}
+)}
+
 
         {view === 'bank' && (
           <div className="form-container">
@@ -476,7 +501,7 @@ await setDoc(doc(db, "meta", "bank"), { balance: updatedBalance });
               >
                 Deposit
               </button>
-              <h3 style={{ marginTop: '20px' }}>Deposit History</h3>
+              <h2 style={{ marginTop: '20px' }}>Deposit History</h2>
             <table className="transaction-table">
               <thead>
                 <tr>
@@ -606,10 +631,6 @@ const PartyInfoTable = ({ partiesInfo = [] }) => {
         onChange={e => setSearch(e.target.value)}
         style={{ marginBottom: '10px', padding: '5px', width: '100%' }}
       />
-
-      <button onClick={handleExportCSV} className='addPurchase-button' >
-        Export CSV
-      </button>
   <div className="transaction-table-wrapper">
       <table className="transaction-table">
         <thead>
