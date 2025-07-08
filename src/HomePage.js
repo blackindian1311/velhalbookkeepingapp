@@ -452,6 +452,8 @@ useEffect(() => {
 
         {view === 'party' && (
           <div className='form-container'>
+          <h2>All Parties</h2>
+            <PartyInfoTable partiesInfo={partiesInfo} />
             <button
                 className="addPurchase-button"
                 onClick={() => setShowPartyForm(prev => !prev)}
@@ -473,8 +475,7 @@ useEffect(() => {
                 </div>
               )}
 
-            <h2>All Parties</h2>
-            <PartyInfoTable partiesInfo={partiesInfo} />
+            
           </div>
 )}
 
