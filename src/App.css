@@ -10,10 +10,12 @@ text-decoration: white;
 
 }
 
-.home-page {  
-  display: -webkit-flex;  
+.home-page {
+  display: flex;
   min-height: 100vh;
-  margin-left: 130px;
+  margin-left: 160px; /* Width of your sidebar */
+  padding: 0 10px;
+  box-sizing: border-box;
 }
 
 
