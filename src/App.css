@@ -45,9 +45,7 @@ text-decoration: white;
   scrollbar-width: none; /* Hide scrollbar for Firefox */
 }
 
-.sidebar.visible {
-  left: 0;
-}
+
 
 .sidebar button {
   display: block;
