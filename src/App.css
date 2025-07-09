@@ -409,39 +409,33 @@ h1{
     width: 90%;
   }
 }
-body { 
-  margin: 0;  
-  padding: 0;  
-  font-family: 'Bodoni Moda', serif;
-  background-color: rgb(238, 170, 130);
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   background-image: repeating-linear-gradient(
     45deg,
-    rgba(0, 0, 0, 0.02) 0px,
-    rgba(0, 0, 0, 0.02) 1px,
-    transparent 1px,
-    transparent 60px
+    rgba(0, 0, 0, 0.05) 0,
+    rgba(0, 0, 0, 0.05) 0.5px,
+    transparent 0.5px,
+    transparent 100px
   ),
   repeating-linear-gradient(
     -45deg,
-    rgba(0, 0, 0, 0.02) 0px,
-    rgba(0, 0, 0, 0.02) 1px,
-    transparent 1px,
-    transparent 60px
-  );
-  background-blend-mode: overlay;
-  position: relative;
-}
-body::before {
-  content: "NRV";
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%) rotate(-30deg);
-  font-size: 180px;
-  color: rgba(0, 0, 0, 0.05);
-  font-weight: 900;
+    rgba(0, 0, 0, 0.05) 0,
+    rgba(0, 0, 0, 0.05) 0.5px,
+    transparent 0.5px,
+    transparent 100px
+  ),
+  url("data:image/svg+xml;utf8,<svg width='200' height='200' xmlns='http://www.w3.org/2000/svg'><text x='0' y='100' font-size='40' font-family='Arial' fill='rgba(0,0,0,0.05)'>NRV</text></svg>");
+  background-repeat: repeat;
   z-index: 0;
-  white-space: nowrap;
   pointer-events: none;
-  user-select: none;
+}
+.main-content {
+  position: relative;
+  z-index: 1;
 }
