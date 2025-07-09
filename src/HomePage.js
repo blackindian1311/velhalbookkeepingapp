@@ -243,12 +243,14 @@ const HomePage = () => {
   }
 
   const newPayment = {
-    type: 'payment',
-    amount: amountToPay,
-    method: paymentMethod,
-    party: selectedParty,
-    date
-  };
+  type: 'payment',
+  amount: amountToPay,
+  method: paymentMethod,
+  party: selectedParty,
+  date,
+  checkNumber: paymentMethod === 'Check' ? form.checkNumber : null
+};
+
 
   const balance = calculateRunningBalance(
     allTransactions.filter(tx => tx.party === selectedParty),
@@ -257,7 +259,7 @@ const HomePage = () => {
   newPayment.balance = balance;
 
   setPaymentTransactions(prev => [...prev, newPayment]);
-  setForm(prev => ({ ...prev, payment: '', paymentMethod: '', date: '' }));
+  setForm(prev => ({ ...prev, payment: '', paymentMethod: '', date: '', checkNumber: '' }));
 
   // 🏦 Subtract from bank if not cash
   if (paymentMethod !== 'Cash') {
@@ -280,12 +282,14 @@ const HomePage = () => {
 
   // 🔄 Send to Firestore for record
   const paymentData = {
-    date: newPayment.date,
-    party: newPayment.party,
-    method: newPayment.method,
-    amount: newPayment.amount,
-    balance: newPayment.balance
-  };
+  date: newPayment.date,
+  party: newPayment.party,
+  method: newPayment.method,
+  amount: newPayment.amount,
+  balance: newPayment.balance,
+  checkNumber: newPayment.checkNumber
+};
+
 
   sendDataToSheet({ type: "payment", ...paymentData });
   };
@@ -371,18 +375,17 @@ const HomePage = () => {
         ))}
       </div>
 
-      <div className="content">
-        
-        <h1>NANDKUMAR RAMACHANDRA VELHAL</h1>
-        
+      <div className="content">     
+
         {view === 'home' && (
+          
           <>
+            <h1>NANDKUMAR RAMACHANDRA VELHAL</h1>
             <h3>Total Owed to All Parties: ₹{(totalOwed || 0).toFixed(2)}</h3>
             <h4>All Transactions</h4>
             <TransactionTable transactions={allTransactions} />
           </>
         )}
-
         {view === 'purchase' && (
           <div className='form-container'>
             <h2>Purchase Entry</h2>
@@ -404,7 +407,6 @@ const HomePage = () => {
 
           </div>
         )}
-
         {view === 'pay' && (
           <div className='form-container'>
             <h2>Payment</h2>
@@ -453,9 +455,7 @@ const HomePage = () => {
       Add Payment
     </button>
   </div>
-)}
-
-
+        )}
         {view === 'return' && (
           <div className='form-container'>
             <h2>Return</h2>
@@ -469,7 +469,6 @@ const HomePage = () => {
             <button className='addPurchase-button' onClick={handleAddReturn}>Add Return</button>
           </div>
         )}
-
         {view === 'balance' && (
           <div className='form-container'>
             <h2>Balance for: {selectedParty || 'None selected'}</h2>
@@ -482,7 +481,6 @@ const HomePage = () => {
             <TransactionTable transactions={filteredTransactions} />
           </div>
         )}
-
         {view === 'party' && (
           <div className='form-container'>
           <h2>All Parties</h2>
@@ -510,9 +508,7 @@ const HomePage = () => {
 
             
           </div>
-)}
-
-
+        )}
         {view === 'bank' && (
           <div className="form-container">
               <h2>Bank Balance: ₹{(bankBalance || 0).toFixed(2)}</h2>
@@ -558,7 +554,6 @@ const HomePage = () => {
 
         </div>
         )}
-
         
       </div>
     </div>
@@ -572,7 +567,16 @@ const TransactionTable = ({ transactions }) => {
     <table className="transaction-table">
       <thead>
         <tr>
-          <th>Date</th><th>Party</th><th>Type</th><th>Bill No</th><th>Method</th><th>Amount</th><th>Debit</th><th>Credit</th><th>Balance</th>
+          <th>Date</th>
+          <th>Party</th>
+          <th>Type</th>
+          <th>Bill No</th>
+          <th>Method</th>
+          <th>Check No</th>
+          <th>Amount</th>
+          <th>Debit</th>
+          <th>Credit</th>
+          <th>Balance</th>
         </tr>
       </thead>
       <tbody>
@@ -588,6 +592,8 @@ const TransactionTable = ({ transactions }) => {
               <td>{tx.type}</td>
               <td>{tx.billNumber || '-'}</td>
               <td>{tx.method || '-'}</td>
+              <td>{tx.method === 'Check' && tx.checkNumber ? tx.checkNumber : '-'}</td>
+
               <td>₹{parseFloat(tx.amount || 0).toFixed(2)}</td>
               <td>{debit !== undefined ? `₹${parseFloat(debit || 0).toFixed(2)}` : '-'}</td>
               <td>{credit !== undefined ? `₹${parseFloat(credit || 0).toFixed(2)}` : '-'}</td>
