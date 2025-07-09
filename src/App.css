@@ -365,4 +365,47 @@ h7 {
 h1{
   text-decoration: #1e2a38;
 }
+* {
+  box-sizing: border-box;
+}
+@media screen and (max-width: 768px) {
+  .home-page {
+    margin-left: 0;
+    padding: 0 15px;
+  }
 
+  .sidebar {
+    position: relative;
+    width: 100%;
+    height: auto;
+  }
+
+  .sidebar button {
+    padding: 15px 5px;
+    font-size: 16px;
+  }
+
+  .form-container {
+    padding: 20px;
+    margin-top: 40px;
+  }
+
+  h1 {
+    font-size: 40px;
+  }
+
+  h2, h3, h4 {
+    font-size: 30px;
+  }
+
+  .addPurchase-button, .newParty-button {
+    padding: 15px 30px;
+    font-size: 18px;
+  }
+
+  input,
+  select,
+  textarea {
+    width: 90%;
+  }
+}
