@@ -22,11 +22,9 @@ const HomePage = () => {
     console.error("Error saving data to Firestore:", error);
   }
 }
-
   const [view, setView] = useState('home');
   const [bankBalance, setBankBalance] = useState(0);
   const [depositAmount, setDepositAmount] = useState(''); // Input field
-  const [sidebarVisible, setSidebarVisible] = useState(false);
   const [purchaseTransactions, setPurchaseTransactions] = useState([]);
   const [paymentTransactions, setPaymentTransactions] = useState([]);
   const [returnTransactions, setReturnTransactions] = useState([]);
@@ -47,18 +45,15 @@ const HomePage = () => {
     payment: '',
     paymentMethod: '',
     returnAmount: '',
-    returnDate: ''
+    returnDate: '',
+    checkNumber: ''  // ✅ add this
   });
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
   const [depositHistory, setDepositHistory] = useState([]);
   const [depositDate, setDepositDate] = useState('');
   const [showPartyForm, setShowPartyForm] = useState(false);
-
-
-
-
-
+  
   useEffect(() => {
   const fetchParties = async () => {
   try {
@@ -75,18 +70,6 @@ const HomePage = () => {
 }, []);
 
   useEffect(() => {
-  const handleMouseMove = (e) => {
-    if (e.clientX < 20) {
-      setSidebarVisible(true);
-    } else if (e.clientX > 200) {
-      setSidebarVisible(false);
-    }
-  };
-
-  window.addEventListener('mousemove', handleMouseMove);
-  return () => window.removeEventListener('mousemove', handleMouseMove);
-}, []);
-useEffect(() => {
   const fetchInitialData = async () => {
   try {
     const snapshot = await getDocs(collection(db, "purchases"));
@@ -128,7 +111,10 @@ useEffect(() => {
 }, []);
 
   const allTransactions = [...purchaseTransactions, ...paymentTransactions, ...returnTransactions];
-  const filteredTransactions = allTransactions.filter(tx => tx.party === selectedParty);
+  allTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+  const filteredTransactions = allTransactions
+    .filter(tx => tx.party === selectedParty)
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
   const totalOwed = filteredTransactions.reduce((total, tx) => {
     if (tx.type === 'purchase') return total + tx.amount;
     if (tx.type === 'payment' || tx.type === 'return') return total - tx.amount;
@@ -186,47 +172,48 @@ useEffect(() => {
     return balance;
   };
   const handleAddPurchase = async () => {
-    const { amount, billNumber, date } = form;
-    if (amount && billNumber && date && selectedParty) {
-      const amt = parseFloat(amount);
-      const gst = amt * 0.05;
-      const totalWithGstRaw = amt + gst;
-      const totalWithGst = Math.round(totalWithGstRaw); // Round to nearest ₹1
+  const { amount, billNumber, date } = form;
 
-  
-      const newPurchase = {
-        type: 'purchase',
-          amount: totalWithGst,
-        gstAmount: gst,
-        baseAmount: amt,
-        party: selectedParty,
-        billNumber,
-        date
-      };
-  
-      const balance = calculateRunningBalance(
-        allTransactions.filter(tx => tx.party === selectedParty),
-        newPurchase
-      );
-      newPurchase.balance = balance;
-  
-      setPurchaseTransactions(prev => [...prev, newPurchase]);
-      setForm(prev => ({ ...prev, amount: '', billNumber: '', date: '' }));
-  
-      const purchaseData = {
-        date: newPurchase.date,
-        party: newPurchase.party,
-        billNumber: newPurchase.billNumber,
-        baseAmount: newPurchase.baseAmount,
-        gstAmount: newPurchase.gstAmount,
-        totalAmount: newPurchase.amount,
-        balance: newPurchase.balance
-      };
-      sendDataToSheet({ type: "purchase", ...purchaseData });
+  if (amount && billNumber && date && selectedParty) {
+    const amt = parseFloat(amount);
+    const gst = amt * 0.05;
+    const totalWithGstRaw = amt + gst;
+    const totalWithGst = Math.round(totalWithGstRaw); // Round to nearest ₹1
 
-    } else {
-      alert('Fill all purchase fields.');
-    }
+    const newPurchase = {
+      type: 'purchase',
+      amount: totalWithGst,
+      gstAmount: gst,
+      baseAmount: amt,
+      party: selectedParty,
+      billNumber,
+      date
+    };
+
+    const balance = calculateRunningBalance(
+      allTransactions.filter(tx => tx.party === selectedParty),
+      newPurchase
+    );
+    newPurchase.balance = balance;
+
+    setPurchaseTransactions(prev => [...prev, newPurchase]);
+    setForm(prev => ({ ...prev, amount: '', billNumber: '', date: '' }));
+
+    const purchaseData = {
+      date: newPurchase.date,
+      party: newPurchase.party,
+      billNumber: newPurchase.billNumber,
+      baseAmount: newPurchase.baseAmount,
+      gstAmount: newPurchase.gstAmount,
+      totalAmount: newPurchase.amount,
+      balance: newPurchase.balance
+    };
+
+    sendDataToSheet({ type: "purchase", ...purchaseData });
+
+  } else {
+    alert('Fill all purchase fields.');
+  }
   };
   const handleAddPayment = async () => {
   const { payment, paymentMethod, date } = form;
@@ -245,7 +232,7 @@ useEffect(() => {
 
   // Don't allow overpaying
   if (amountToPay > totalOwed) {
-    alert(`Cannot pay more than owed. This party only owes ₹${totalOwed.toFixed(2)}.`);
+    alert(`Cannot pay more than owed. This party only owes ₹${(totalOwed || 0).toFixed(2)}.`);
     return;
   }
 
@@ -272,20 +259,26 @@ useEffect(() => {
   setPaymentTransactions(prev => [...prev, newPayment]);
   setForm(prev => ({ ...prev, payment: '', paymentMethod: '', date: '' }));
 
+  // 🏦 Subtract from bank if not cash
   if (paymentMethod !== 'Cash') {
-  const updatedBalance = bankBalance - amountToPay;
-  setBankBalance(updatedBalance);
-  await setDoc(doc(db, "meta", "bank"), { balance: updatedBalance });
+    const updatedBalance = bankBalance - amountToPay;
+    setBankBalance(updatedBalance);
+    await setDoc(doc(db, "meta", "bank"), { balance: updatedBalance });
 
-  // ✅ NEW: Log money going out of the bank
-  await addDoc(collection(db, "bankDeposits"), {
-    amount: -amountToPay,
-    date: date
-  });
-}
+    // ✅ Log to Firestore
+    await addDoc(collection(db, "bankDeposits"), {
+      amount: -amountToPay,
+      date
+    });
 
+    // ✅ Add to in-memory history so UI updates immediately
+    setDepositHistory(prev => [
+      { amount: -amountToPay, date },
+      ...prev,
+    ]);
+  }
 
-
+  // 🔄 Send to Firestore for record
   const paymentData = {
     date: newPayment.date,
     party: newPayment.party,
@@ -296,7 +289,6 @@ useEffect(() => {
 
   sendDataToSheet({ type: "payment", ...paymentData });
   };
-
   const handleAddReturn = async () => {
     const { returnAmount, returnDate } = form;
     if (returnAmount && returnDate && selectedParty) {
@@ -363,16 +355,12 @@ useEffect(() => {
   } else {
     alert('Please enter a valid number');
   }
-};
-
-
-
-
+  };
 
   return (
     <div className="home-page">
       
-      <div className={`sidebar ${sidebarVisible ? 'visible' : ''}`}>
+      <div className="sidebar">
       <h1 className="nrv-logo">NRV</h1>
 
         {['home', 'purchase', 'pay', 'return', 'balance', 'party', 'bank'].map(btn => (
@@ -420,21 +408,53 @@ useEffect(() => {
         {view === 'pay' && (
           <div className='form-container'>
             <h2>Payment</h2>
+
             <select value={selectedParty} onChange={e => setSelectedParty(e.target.value)}>
               <option value="">Select Party</option>
-              {partiesInfo.map((p, i) => <option key={i} value={p.businessName}>{p.businessName}</option>)}
+              {partiesInfo.map((p, i) => (
+                <option key={i} value={p.businessName}>{p.businessName}</option>
+              ))}
             </select>
-            <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} />
-            <input type="number" placeholder="Amount" value={form.payment} onChange={e => setForm({ ...form, payment: e.target.value })} />
-            <select value={form.paymentMethod} onChange={e => setForm({ ...form, paymentMethod: e.target.value })}>
-            <option value="">Select Payment Method</option>
+
+            <input
+              type="date"
+              value={form.date}
+              onChange={e => setForm({ ...form, date: e.target.value })}
+            />
+
+            <input
+              type="number"
+              placeholder="Amount"
+              value={form.payment}
+              onChange={e => setForm({ ...form, payment: e.target.value })}
+            />
+
+            <select
+              value={form.paymentMethod}
+              onChange={e => setForm({ ...form, paymentMethod: e.target.value })}
+            >
+              <option value="">Select Payment Method</option>
               <option value="Cash">Cash</option>
-              <option value="NFT">NFT</option>
+              <option value="NEFT">NEFT</option>
               <option value="Check">Check</option>
             </select>
-            <button className='addPurchase-button'onClick={handleAddPayment}>Add Payment</button>
-          </div>
-        )}
+
+            {/* ✅ Check number input only when method is "Check" */}
+            {form.paymentMethod === 'Check' && (
+              <input
+                type="text"
+                placeholder="Enter Check Number"
+                value={form.checkNumber || ''}
+                onChange={e => setForm({ ...form, checkNumber: e.target.value })}
+              />
+            )}
+
+    <button className='addPurchase-button' onClick={handleAddPayment}>
+      Add Payment
+    </button>
+  </div>
+)}
+
 
         {view === 'return' && (
           <div className='form-container'>
@@ -683,8 +703,6 @@ const PartyInfoTable = ({ partiesInfo = [] }) => {
   
   );
 };
-<button onClick={() => setSidebarVisible(!sidebarVisible)} className="menu-toggle">
-  ☰ Menu
-</button>
+
 
 export default HomePage;
