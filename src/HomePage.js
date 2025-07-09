@@ -395,21 +395,24 @@ const HomePage = () => {
     });
     // Add to ledger state immediately
     setBankLedger(prev => {
-      const latestBalance = prev.length > 0 ? prev[0].balance : 0;
-      const newBalance = latestBalance + depositAmount;
+    const latestBalance = prev.length > 0 ? prev[0].balance : 0;
+    const numericAmount = parseFloat(depositAmount);
 
-      const newEntry = {
-        date: depositDate,
-        party: '-',
-        method: 'Deposit',
-        checkNumber: '-',
-        debit: null,
-        credit: depositAmount,
-        balance: newBalance
-      };
+    const newBalance = latestBalance + numericAmount;
 
-      return [newEntry, ...prev];
-    });
+    const newEntry = {
+      date: dateToUse,
+      party: '-',
+      method: 'Deposit',
+      checkNumber: '-',
+      debit: null,
+      credit: numericAmount,
+      balance: newBalance
+    };
+
+    return [newEntry, ...prev];
+  });
+
 
     // ✅ Refresh from Firestore instead of assuming
     const fresh = await getDoc(doc(db, "meta", "bank"));
