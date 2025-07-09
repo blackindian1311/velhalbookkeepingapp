@@ -332,16 +332,19 @@ h6 {
   margin-bottom: 40px;
 }
 .nrv-logo {
-  font-size: 5vw;                /* Responsive size based on screen width */
+  font-size: 5vw;                /* Responsive size */
   font-weight: bold;
   color: #1e2a38;
-  margin-bottom: 30px;
-  white-space: nowrap;           /* Prevent text from wrapping */
-  overflow: hidden;
+  white-space: nowrap;           /* Keeps "NRV" on one line */
+  overflow: hidden;              /* Prevents spill outside */
   text-align: center;
-  display: block;
-  width: 100%;
-  line-height: 1.2;
+  display: flex;                 /* Aligns content centrally */
+  justify-content: center;
+  align-items: center;
+  width: 100%;                   /* Makes sure it spans full width */
+  max-width: 100vw;              /* Ensures it never exceeds screen */
+  box-sizing: border-box;        /* Includes padding in size */
+  padding: 0 10px;               /* Optional inner space */
 }
 @media screen and (max-width: 480px) {
   .nrv-logo {
