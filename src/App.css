@@ -57,7 +57,7 @@ text-decoration: white;
   cursor: pointer;
   text-align: center;
   font-size: 18px;
-  margin-bottom: 50px;
+  margin-bottom: 10px;
   border-radius: 0; /* Make square */
   transition: background-color 0.3s ease, transform 0.2s ease;
 }
