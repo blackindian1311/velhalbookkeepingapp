@@ -343,6 +343,17 @@ h6 {
   width: 100%;
   line-height: 1.2;
 }
+@media screen and (max-width: 480px) {
+  .nrv-logo {
+    font-size: 8vw;
+  }
+}
+
+@media screen and (min-width: 1024px) {
+  .nrv-logo {
+    font-size: 60px;
+  }
+}
 
 .form-group {
   display: flex;
