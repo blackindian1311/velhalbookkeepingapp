@@ -332,14 +332,15 @@ h6 {
   margin-bottom: 40px;
 }
 .nrv-logo {
-  font-size: 6vw; /* Responsive font size */
-  max-width: 100%;
+  font-size: 80px;
+  font-weight: bold;
+  color: #1e2a38;
+  margin-bottom: 30px;
+  white-space: nowrap;         /* ✅ Force NRV on one line */
+  overflow: hidden;            /* Prevent cutting */
   text-align: center;
-  overflow-wrap: break-word;
-  word-break: break-word;
-  white-space: normal;
-  padding: 0 10px;
-  box-sizing: border-box;
+  display: block;
+  width: 100%;
 }
 
 .form-group {
