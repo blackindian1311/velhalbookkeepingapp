@@ -53,6 +53,8 @@ const HomePage = () => {
   const [depositHistory, setDepositHistory] = useState([]);
   const [depositDate, setDepositDate] = useState('');
   const [showPartyForm, setShowPartyForm] = useState(false);
+  const [bankLedger, setBankLedger] = useState([]);
+
   
   useEffect(() => {
   const fetchParties = async () => {
@@ -70,45 +72,90 @@ const HomePage = () => {
 }, []);
 
   useEffect(() => {
-  const fetchInitialData = async () => {
-  try {
-    const snapshot = await getDocs(collection(db, "purchases"));
-    const purchaseData = snapshot.docs.map(doc => ({ id: doc.id, type: 'purchase', ...doc.data() }));
+      const fetchInitialData = async () => {
+        try {
+          // Fetch purchases, payments, returns
+          const snapshot = await getDocs(collection(db, "purchases"));
+          const purchaseData = snapshot.docs.map(doc => ({ id: doc.id, type: 'purchase', ...doc.data() }));
 
-    const snapshot2 = await getDocs(collection(db, "payments"));
-    const paymentData = snapshot2.docs.map(doc => ({ id: doc.id, type: 'payment', ...doc.data() }));
+          const snapshot2 = await getDocs(collection(db, "payments"));
+          const paymentData = snapshot2.docs.map(doc => ({ id: doc.id, type: 'payment', ...doc.data() }));
 
-    const snapshot3 = await getDocs(collection(db, "returns"));
-    const returnData = snapshot3.docs.map(doc => ({ id: doc.id, type: 'return', ...doc.data() }));
-    const loadBankBalance = async () => {
-    const bankDoc = doc(db, "meta", "bank");
-    const snapshot = await getDoc(bankDoc);
-    if (snapshot.exists()) {
-      setBankBalance(snapshot.data().balance);
-    } else {
-      // Initialize bank balance if not found
-      await setDoc(bankDoc, { balance: 0 });
-      setBankBalance(0);
+          const snapshot3 = await getDocs(collection(db, "returns"));
+          const returnData = snapshot3.docs.map(doc => ({ id: doc.id, type: 'return', ...doc.data() }));
+
+          // Set purchase/payment/return transactions
+          setPurchaseTransactions(purchaseData);
+          setPaymentTransactions(paymentData);
+          setReturnTransactions(returnData);
+
+          // Load bank balance
+          const bankDoc = doc(db, "meta", "bank");
+          const bankSnap = await getDoc(bankDoc);
+          if (bankSnap.exists()) {
+            setBankBalance(bankSnap.data().balance);
+          } else {
+            await setDoc(bankDoc, { balance: 0 });
+            setBankBalance(0);
+          }
+
+          // Fetch deposits
+          const snapshot4 = await getDocs(collection(db, "bankDeposits"));
+          const deposits = snapshot4.docs.map(doc => doc.data());
+          deposits.sort((a, b) => new Date(b.date) - new Date(a.date));
+          setDepositHistory(deposits);
+
+          // ✅ Build detailed bank ledger
+          const combinedBankEntries = [];
+
+          // Add deposits
+          deposits.forEach(d => {
+            combinedBankEntries.push({
+              date: d.date,
+              party: '-',
+              method: 'Deposit',
+              checkNumber: '-',
+              debit: null,
+              credit: parseFloat(d.amount),
+              balance: null
+            });
+          });
+
+          // Add payments (only NEFT or Check)
+          paymentData.forEach(p => {
+            if (p.method !== 'Cash') {
+              combinedBankEntries.push({
+                date: p.date,
+                party: p.party,
+                method: p.method,
+                checkNumber: p.checkNumber || '-',
+                debit: parseFloat(p.amount),
+                credit: null,
+                balance: null
+              });
+            }
+      });
+
+      // Sort ascending for balance calculation
+      combinedBankEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+      let runningBalance = 0;
+      const ledgerWithBalance = combinedBankEntries.map(entry => {
+        if (entry.credit) runningBalance += entry.credit;
+        if (entry.debit) runningBalance -= entry.debit;
+        return { ...entry, balance: runningBalance };
+      });
+
+      // Save to state, newest first
+      setBankLedger(ledgerWithBalance.reverse());
+    } catch (error) {
+      console.error("Failed to fetch data from Firestore:", error);
     }
-    };
-
-    loadBankBalance();
-    const snapshot4 = await getDocs(collection(db, "bankDeposits"));
-    const deposits = snapshot4.docs.map(doc => doc.data());
-    deposits.sort((a, b) => new Date(b.date) - new Date(a.date)); // newest first
-    setDepositHistory(deposits);
-    setPurchaseTransactions(purchaseData);
-    setPaymentTransactions(paymentData);
-    setReturnTransactions(returnData);
-  } catch (error) {
-    console.error("Failed to fetch data from Firestore:", error);
-  }
-};
-
-
+  };
 
   fetchInitialData();
 }, []);
+
 
   const allTransactions = [...purchaseTransactions, ...paymentTransactions, ...returnTransactions];
   allTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -174,47 +221,53 @@ const HomePage = () => {
   const handleAddPurchase = async () => {
   const { amount, billNumber, date } = form;
 
-  if (amount && billNumber && date && selectedParty) {
-    const amt = parseFloat(amount);
-    const gst = amt * 0.05;
-    const totalWithGstRaw = amt + gst;
-    const totalWithGst = Math.round(totalWithGstRaw); // Round to nearest ₹1
-
-    const newPurchase = {
-      type: 'purchase',
-      amount: totalWithGst,
-      gstAmount: gst,
-      baseAmount: amt,
-      party: selectedParty,
-      billNumber,
-      date
-    };
-
-    const balance = calculateRunningBalance(
-      allTransactions.filter(tx => tx.party === selectedParty),
-      newPurchase
-    );
-    newPurchase.balance = balance;
-
-    setPurchaseTransactions(prev => [...prev, newPurchase]);
-    setForm(prev => ({ ...prev, amount: '', billNumber: '', date: '' }));
-
-    const purchaseData = {
-      date: newPurchase.date,
-      party: newPurchase.party,
-      billNumber: newPurchase.billNumber,
-      baseAmount: newPurchase.baseAmount,
-      gstAmount: newPurchase.gstAmount,
-      totalAmount: newPurchase.amount,
-      balance: newPurchase.balance
-    };
-
-    sendDataToSheet({ type: "purchase", ...purchaseData });
-
-  } else {
+  if (!amount || !billNumber || !date || !selectedParty) {
     alert('Fill all purchase fields.');
+    return;
   }
+
+  const amt = parseFloat(amount);
+  if (isNaN(amt) || amt <= 0) {
+    alert("Please enter a valid amount greater than 0.");
+    return;
+  }
+
+  const gst = amt * 0.05;
+  const totalWithGstRaw = amt + gst;
+  const totalWithGst = Math.round(totalWithGstRaw); // Round to nearest ₹1
+
+  const newPurchase = {
+    type: 'purchase',
+    amount: totalWithGst,
+    gstAmount: gst,
+    baseAmount: amt,
+    party: selectedParty,
+    billNumber,
+    date
   };
+
+  const balance = calculateRunningBalance(
+    allTransactions.filter(tx => tx.party === selectedParty),
+    newPurchase
+  );
+  newPurchase.balance = balance;
+
+  setPurchaseTransactions(prev => [...prev, newPurchase]);
+  setForm(prev => ({ ...prev, amount: '', billNumber: '', date: '' }));
+
+  const purchaseData = {
+    date: newPurchase.date,
+    party: newPurchase.party,
+    billNumber: newPurchase.billNumber,
+    baseAmount: newPurchase.baseAmount,
+    gstAmount: newPurchase.gstAmount,
+    totalAmount: newPurchase.amount,
+    balance: newPurchase.balance
+  };
+
+  sendDataToSheet({ type: "purchase", ...purchaseData });
+};
+
   const handleAddPayment = async () => {
   const { payment, paymentMethod, date } = form;
   const amountToPay = parseFloat(payment);
@@ -339,6 +392,23 @@ const HomePage = () => {
     await addDoc(collection(db, "bankDeposits"), {
       amount,
       date: dateToUse
+    });
+    // Add to ledger state immediately
+    setBankLedger(prev => {
+      const latestBalance = prev.length > 0 ? prev[0].balance : 0;
+      const newBalance = latestBalance + depositAmount;
+
+      const newEntry = {
+        date: depositDate,
+        party: '-',
+        method: 'Deposit',
+        checkNumber: '-',
+        debit: null,
+        credit: depositAmount,
+        balance: newBalance
+      };
+
+      return [newEntry, ...prev];
     });
 
     // ✅ Refresh from Firestore instead of assuming
@@ -537,16 +607,28 @@ const HomePage = () => {
               <thead>
                 <tr>
                   <th>Date</th>
-                  <th>Amount</th>
+                  <th>Party</th>
+                  <th>Method</th>
+                  <th>Check No.</th>
+                  <th>Debit</th>
+                  <th>Credit</th>
+                  <th>Balance</th>
                 </tr>
               </thead>
               <tbody>
-                {depositHistory.map((entry, index) => (
+                {bankLedger.map((entry, index) => (
                   <tr key={index}>
                     <td>{new Date(entry.date).toLocaleString()}</td>
-                    <td style={{ color: entry.amount < 0 ? 'red' : 'green' }}>
-                      ₹{Math.abs(parseFloat(entry.amount || 0)).toFixed(2)} {entry.amount < 0 ? '(Out)' : '(In)'}
+                    <td>{entry.party}</td>
+                    <td>{entry.method}</td>
+                    <td>{entry.checkNumber || '-'}</td>
+                    <td style={{ color: entry.debit ? 'red' : 'black' }}>
+                      {entry.debit ? `₹${entry.debit.toFixed(2)}` : '-'}
                     </td>
+                    <td style={{ color: entry.credit ? 'green' : 'black' }}>
+                      {entry.credit ? `₹${entry.credit.toFixed(2)}` : '-'}
+                    </td>
+                    <td>₹{entry.balance.toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -561,52 +643,67 @@ const HomePage = () => {
 };
 
 const TransactionTable = ({ transactions }) => {
+  const sortedTransactions = transactions
+    .slice()
+    .sort((a, b) => new Date(b.date) - new Date(a.date)); // newest to oldest
+
   let runningBalance = 0;
+
   return (
-   <div className="transaction-table-wrapper">
-    <table className="transaction-table">
-      <thead>
-        <tr>
-          <th>Date</th>
-          <th>Party</th>
-          <th>Type</th>
-          <th>Bill No</th>
-          <th>Method</th>
-          <th>Check No</th>
-          <th>Amount</th>
-          <th>Debit</th>
-          <th>Credit</th>
-          <th>Balance</th>
-        </tr>
-      </thead>
-      <tbody>
-        {transactions.map((tx, i) => {
-          const debit = tx.type === 'purchase' ? tx.amount : null;
-          const credit = tx.type === 'payment' || tx.type === 'return' ? tx.amount : null;
-          runningBalance += debit || 0;
-          runningBalance -= credit || 0;
-          return (
-            <tr key={i}>
-              <td>{tx.date}</td>
-              <td>{tx.party}</td>
-              <td>{tx.type}</td>
-              <td>{tx.billNumber || '-'}</td>
-              <td>{tx.method || '-'}</td>
-              <td>{tx.method === 'Check' && tx.checkNumber ? tx.checkNumber : '-'}</td>
+    <div className="transaction-table-wrapper">
+      <table className="transaction-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Party</th>
+            <th>Type</th>
+            <th>Bill No</th>
+            <th>Method</th>
+            <th>Check No</th>
+            <th>Amount</th>
+            <th>Debit</th>
+            <th>Credit</th>
+            <th>Balance</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sortedTransactions.map((tx, i) => {
+            let runningBalance = 0;
+            const balanceMap = {}; // stores balance per party
+            const party = tx.party;
+            if (!balanceMap[party]) balanceMap[party] = 0;
 
-              <td>₹{parseFloat(tx.amount || 0).toFixed(2)}</td>
-              <td>{debit !== undefined ? `₹${parseFloat(debit || 0).toFixed(2)}` : '-'}</td>
-              <td>{credit !== undefined ? `₹${parseFloat(credit || 0).toFixed(2)}` : '-'}</td>
-              <td>₹{parseFloat(runningBalance || 0).toFixed(2)}</td>
+            const debit = tx.type === 'purchase' ? tx.amount : null;
+            const credit = tx.type === 'payment' || tx.type === 'return' ? tx.amount : null;
 
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
+            balanceMap[party] += debit || 0;
+            balanceMap[party] -= credit || 0;
+
+            const currentBalance = balanceMap[party];
+
+
+            return (
+              <tr key={i}>
+                <td>{tx.date}</td>
+                <td>{tx.party}</td>
+                <td>{tx.type}</td>
+                <td>{tx.billNumber || '-'}</td>
+                <td>{tx.method || '-'}</td>
+                <td>{tx.method === 'Check' && tx.checkNumber ? tx.checkNumber : '-'}</td>
+                <td>₹{parseFloat(tx.amount || 0).toFixed(2)}</td>
+                <td>{debit !== undefined ? `₹${parseFloat(debit || 0).toFixed(2)}` : '-'}</td>
+                <td>{credit !== undefined ? `₹${parseFloat(credit || 0).toFixed(2)}` : '-'}</td>
+                <td>₹{parseFloat(currentBalance || 0).toFixed(2)}</td>
+              </tr>
+            );
+          })}
+
+        </tbody>
+      </table>
     </div>
   );
 };
+
 
 const PartyInfoTable = ({ partiesInfo = [] }) => {
   const [search, setSearch] = useState('');
