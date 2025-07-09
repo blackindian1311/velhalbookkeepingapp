@@ -353,6 +353,12 @@ h6 {
   max-width: 100%;
   overflow: visible;
 }
+.background-watermark-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
 
 @media screen and (max-width: 480px) {
   .nrv-logo {
