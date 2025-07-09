@@ -22,7 +22,7 @@ text-decoration: white;
   position: fixed;
   top: 0;
   left: 0; /* ✅ no more sliding */
-  width: 100px;
+  width: 140px;
   height: 100vh;
   background-color: rgb(238, 170, 130);
   color: white;
