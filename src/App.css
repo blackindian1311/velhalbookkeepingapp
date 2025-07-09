@@ -418,7 +418,7 @@ body::before {
   font-size: 280px; /* 🔸 Increase size */
   color: rgba(0, 0, 0, 0.08); /* 🔸 Make it darker */
   font-weight: 900;
-  z-index: 0;
+  z-index: -1;
   white-space: nowrap;
   pointer-events: none;
   user-select: none;
