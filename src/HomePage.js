@@ -205,7 +205,7 @@ const HomePage = () => {
   } else {
     alert('Please fill all fields.');
   }
-};
+  };
   const calculateRunningBalance = (transactions, newTransaction) => {
     const all = [...transactions, newTransaction];
     all.sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -246,6 +246,10 @@ const HomePage = () => {
     date
   };
 
+  // ✅ Save to Firestore
+  await addDoc(collection(db, "purchases"), newPurchase);
+
+  // ✅ Update local state
   const balance = calculateRunningBalance(
     allTransactions.filter(tx => tx.party === selectedParty),
     newPurchase
@@ -266,7 +270,7 @@ const HomePage = () => {
   };
 
   sendDataToSheet({ type: "purchase", ...purchaseData });
-};
+  };
 
   const handleAddPayment = async () => {
   const { payment, paymentMethod, date } = form;
@@ -706,7 +710,6 @@ const TransactionTable = ({ transactions }) => {
     </div>
   );
 };
-
 
 const PartyInfoTable = ({ partiesInfo = [] }) => {
   const [search, setSearch] = useState('');
