@@ -3,6 +3,11 @@ import './App.css';
 import { db } from "./firebase";
 import { collection, addDoc, getDocs } from "firebase/firestore";
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+{/*1. edit option for past transaction
+2. add a clear field for purchase pay and return
+3. fix the bug on the total owed to each money
+4. add export csv to all transactions 
+5. make it so that the balance in the transactions should show the total amount owed.*/}
 
 const HomePage = () => {
   async function sendDataToSheet(data) {
@@ -46,7 +51,8 @@ const HomePage = () => {
     paymentMethod: '',
     returnAmount: '',
     returnDate: '',
-    checkNumber: ''  // ✅ add this
+    checkNumber: '',
+    salaryPaymentName: ''
   });
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
@@ -444,7 +450,7 @@ const HomePage = () => {
       <div className="sidebar">
       <h1 className="nrv-logo">NRV</h1>
 
-        {['home', 'purchase', 'pay', 'return', 'balance', 'party', 'bank'].map(btn => (
+        {['home', 'purchase', 'pay', 'return', 'balance', 'party', 'bank', 'salary'].map(btn => (
           <button key={btn} style={{ marginBottom: '15px' }} onClick={() => setView(btn)}>
           {btn.charAt(0).toUpperCase() + btn.slice(1)}
         </button>
@@ -643,6 +649,25 @@ const HomePage = () => {
 
         </div>
         )}
+        {view === 'salary' && (
+          <div className='form-container'>
+            <h2>Salary Payment</h2>
+
+            <input 
+              type="date"
+              value={form.date}
+              onChange={e => setForm({ ...form, date: e.target.value })}
+            />
+
+            <input 
+              type="salaryPaymentName"
+              value={form.salaryPaymentName}
+              onChange={e => setForm({ ...form, date: e.target.value })}
+            />
+
+          </div>
+        )}
+        
         
       </div>
     </div>
