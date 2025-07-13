@@ -836,7 +836,29 @@ const PartyInfoTable = ({ partiesInfo = [] }) => {
     </div>
   
   );
+}
+// Add this near your other state declarations
+const clearFormFields = () => {
+  setForm({
+    amount: '',
+    billNumber: '',
+    date: '',
+    payment: '',
+    paymentMethod: '',
+    returnAmount: '',
+    returnDate: '',
+    checkNumber: '',
+    salaryPaymentName: ''
+  });
 };
 
-
+const calculatePartyBalance = (party) => {
+  return allTransactions
+    .filter(tx => tx.party === party)
+    .reduce((balance, tx) => {
+      if (tx.type === 'purchase') return balance + (tx.amount || 0);
+      if (tx.type === 'payment' || tx.type === 'return') return balance - (tx.amount || 0);
+      return balance;
+    }, 0);
+};
 export default HomePage;
