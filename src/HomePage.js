@@ -1,37 +1,77 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
 import { db } from "./firebase";
-import { collection, addDoc, getDocs, updateDoc, doc, getDoc, setDoc } from "firebase/firestore";
+import { collection, addDoc, updateDoc, doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
 
+// Helper for numbers
 const asNumber = v => Number(typeof v === "string" ? v.replace(/,/g, "") : v) || 0;
 
-// --- CSV Export ---
-function exportTransactionsCSV(transactions) {
-  const headers = [
-    'Date','Party','Type','Bill No','Method','Check No','Amount','Debit','Credit','Balance','Comment'
-  ];
-  const rows = transactions.map(tx => [
-    tx.date,
-    tx.party,
-    tx.type,
-    tx.billNumber || '-',
-    tx.method || '-',
-    (tx.method === 'Check' ? tx.checkNumber : '-') || '-',
-    asNumber(tx.amount).toFixed(2),
-    tx.type === "purchase" ? asNumber(tx.amount).toFixed(2) : '',
-    (tx.type === "payment" || tx.type === "return") ? asNumber(tx.amount).toFixed(2) : '',
-    asNumber(tx.balance || 0).toFixed(2),
-    tx.comment ? `"${tx.comment.replace(/"/g, '""')}"` : ""
-  ]);
-  const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-  const blob = new Blob([csv], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `transactions_${Date.now()}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
+// --- Party Info Table ---
+const PartyInfoTable = ({ parties = [] }) => {
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const rowsPerPage = 7;
+
+  const filtered = parties
+    .filter(p =>
+      (p.businessName || '').toLowerCase().includes(search.toLowerCase()) ||
+      (p.contactName || '').toLowerCase().includes(search.toLowerCase()) ||
+      (p.phoneNumber || '').includes(search) ||
+      (p.contactMobile || '').includes(search)
+    );
+
+  const totalPages = Math.ceil(filtered.length / rowsPerPage);
+  const shown = filtered.slice((page - 1) * rowsPerPage, page * rowsPerPage);
+
+  return (
+    <div>
+      <input
+        type="text"
+        value={search}
+        placeholder="Search party..."
+        onChange={e=>{setSearch(e.target.value); setPage(1);}}
+        style={{ marginBottom: '10px', padding: '5px', width: '100%' }}
+      />
+      <div style={{overflowX:'auto'}}>
+        <table className="transaction-table">
+          <thead>
+            <tr>
+              <th>Business</th>
+              <th>Phone</th>
+              <th>Bank</th>
+              <th>Bank Name</th>
+              <th>Contact</th>
+              <th>Mobile</th>
+            </tr>
+          </thead>
+          <tbody>
+            {shown.length === 0 && (
+              <tr>
+                <td colSpan={6} style={{textAlign:'center', color:'#888'}}>No parties found.</td>
+              </tr>
+            )}
+            {shown.map((p, i) =>
+              <tr key={i}>
+                <td>{p.businessName}</td>
+                <td>{p.phoneNumber}</td>
+                <td>{p.bankNumber}</td>
+                <td>{p.bankName}</td>
+                <td>{p.contactName}</td>
+                <td>{p.contactMobile}</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      <div style={{marginTop:8,textAlign:'center'}}>
+        Page {page}/{totalPages || 1}
+        <br />
+        <button disabled={page<=1} onClick={()=>setPage(page-1)}>Previous</button>
+        <button disabled={page>=totalPages} onClick={()=>setPage(page+1)} style={{marginLeft:8}}>Next</button>
+      </div>
+    </div>
+  );
+};
 
 // --- Modal for Comments
 function CommentModal({ tx, onClose }) {
@@ -72,6 +112,7 @@ const HomePage = () => {
   const [purchaseTransactions, setPurchaseTransactions] = useState([]);
   const [paymentTransactions, setPaymentTransactions] = useState([]);
   const [returnTransactions, setReturnTransactions] = useState([]);
+  const [bankDeposits, setBankDeposits] = useState([]);
   const [partiesInfo, setPartiesInfo] = useState([]);
   const [partyInput, setPartyInput] = useState({
     businessName: '', phoneNumber: '', bankNumber: '',
@@ -91,50 +132,39 @@ const HomePage = () => {
     comment: ''
   });
   const [showPartyForm, setShowPartyForm] = useState(false);
-  const [refreshCounter, setRefreshCounter] = useState(0);
 
-  // Get everything fresh from Firestore after any write!
-  async function refreshAllTransactionsFromFirestore() {
-    // fetch all at ONCE
-    const [snapP, snapPay, snapR] = await Promise.all([
-      getDocs(collection(db, "purchases")),
-      getDocs(collection(db, "payments")),
-      getDocs(collection(db, "returns")),
-    ]);
-    setPurchaseTransactions(snapP.docs.map(d=>({id: d.id, type:'purchase',...d.data()})));
-    setPaymentTransactions(snapPay.docs.map(d=>({id: d.id, type:'payment',...d.data()})));
-    setReturnTransactions(snapR.docs.map(d=>({id: d.id, type:'return',...d.data()})));
-    // also reload bank balance
-    const bankDoc = doc(db, "meta", "bank");
-    const bankSnap = await getDoc(bankDoc);
-    if (bankSnap.exists()) setBankBalance(bankSnap.data().balance);
-
-    // trigger re-render for all derived views
-    setRefreshCounter(x => x+1);
-  }
-
+  // Real-time listeners for all main Firestore collections
   useEffect(() => {
-    // Parties, initial bank balance, all txs
-    async function fetchInitialData() {
-      const [partySnap, bankDoc, snapP, snapPay, snapR] = await Promise.all([
-        getDocs(collection(db, "parties")),
-        getDoc(doc(db, "meta", "bank")),
-        getDocs(collection(db, "purchases")),
-        getDocs(collection(db, "payments")),
-        getDocs(collection(db, "returns")),
-      ]);
-      setPartiesInfo(partySnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-      setBankBalance(bankDoc.exists() ? bankDoc.data().balance : 0);
-      setPurchaseTransactions(snapP.docs.map(doc => ({ id: doc.id, type: 'purchase', ...doc.data() })));
-      setPaymentTransactions(snapPay.docs.map(doc => ({ id: doc.id, type: 'payment', ...doc.data() })));
-      setReturnTransactions(snapR.docs.map(doc => ({ id: doc.id, type: 'return', ...doc.data() })));
+    const partySnap = onSnapshot(collection(db, "parties"), snapshot => {
+      setPartiesInfo(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+    const unsubPurch = onSnapshot(collection(db, "purchases"), snap => {
+      setPurchaseTransactions(snap.docs.map(doc => ({ id: doc.id, type: 'purchase', ...doc.data() })));
+    });
+    const unsubPay = onSnapshot(collection(db, "payments"), snap => {
+      setPaymentTransactions(snap.docs.map(doc => ({ id: doc.id, type: 'payment', ...doc.data() })));
+    });
+    const unsubRet = onSnapshot(collection(db, "returns"), snap => {
+      setReturnTransactions(snap.docs.map(doc => ({ id: doc.id, type: 'return', ...doc.data() })));
+    });
+    const unsubDeposits = onSnapshot(collection(db, "bankDeposits"), snap => {
+      setBankDeposits(snap.docs.map(doc => ({ ...doc.data() })));
+    });
+    async function fetchBankBalance() {
+      const bdoc = await getDoc(doc(db, "meta", "bank"));
+      setBankBalance(bdoc.exists() ? bdoc.data().balance : 0);
     }
-    fetchInitialData();
+    fetchBankBalance();
+    return () => {
+      partySnap();
+      unsubPurch();
+      unsubPay();
+      unsubRet();
+      unsubDeposits();
+    };
   }, []);
 
-  // NO need to maintain a "bankLedger" state, just calculate from data at render time!
-
-  // --- For recomputing all transaction history instantly
+  // All transactions (ascending date order)
   const allTransactions = [
     ...purchaseTransactions, ...paymentTransactions, ...returnTransactions
   ].sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -148,48 +178,45 @@ const HomePage = () => {
     if (tx.type === 'payment' || tx.type === 'return') return total - asNumber(tx.amount);
     return total;
   }, 0);
-  // BANK LEDGER: always compute from deposit/payments
-  function getBankLedger() {
+
+  // BANK LEDGER: combined and ascending date order
+  const getBankLedger = () => {
     let ledger = [];
-    // Gather deposits/payments only on NEFT/Check, as bank transactions
-    let deposits = [];
-    // get bank deposits (as added to actual DB)
-    // Optionally: you may fetch deposits separately if you want
-    // But for now, we reconstruct bank ledger only from purchases/payments/returns:
-    allTransactions.forEach(p => {
-      // ignore "purchases"/"returns", only payments with bank
-      if (p.type === 'payment' && p.method && p.method !== 'Cash') {
-        deposits.push({
+    bankDeposits.forEach(d => {
+      ledger.push({
+        date: d.date,
+        party: '-',
+        method: 'Deposit',
+        checkNumber: '-',
+        debit: d.amount < 0 ? Math.abs(asNumber(d.amount)) : null,
+        credit: d.amount > 0 ? asNumber(d.amount) : null,
+        type: 'deposit'
+      });
+    });
+    paymentTransactions.forEach(p => {
+      if (p.method === "NEFT" || p.method === "Check") {
+        ledger.push({
           date: p.date,
           party: p.party,
           method: p.method,
           checkNumber: p.checkNumber || '-',
           debit: asNumber(p.amount),
-          credit: null
+          credit: null,
+          type: "payment"
         });
       }
     });
-    // Add all direct deposit entries too (as in your previous deposits)
-    // Instead of new state, just read via payment ledger
-    // If you keep explicit bankDeposits collection, load and concat here too!
-    // (Here, you can add extra fetch/useEffect for real deposits...)
-
-    // For now: calculate balance FORWARD in time
-    deposits.sort((a,b) => new Date(a.date) - new Date(b.date));
-    let runBal = bankBalance; // You may want to recalc from 0, but if you want fresh...
-    let ledgerFinal = [];
-    // For forward running — easiest way is to recalc from 0, but to match bankBalance
-    // To fix: recalc all deposits from 0 up:
+    // ASCENDING sort!
+    ledger.sort((a, b) => new Date(a.date) - new Date(b.date));
     let balance = 0;
-    deposits.forEach(entry => {
+    const ledgerFinal = ledger.map(entry => {
       if (entry.credit) balance += entry.credit;
       if (entry.debit) balance -= entry.debit;
-      ledgerFinal.push({ ...entry, balance: balance });
+      return { ...entry, balance };
     });
-    return ledgerFinal.reverse();
-  }
+    return ledgerFinal;
+  };
 
-  // --- When you save a new tx, ALWAYS refresh Firestore data (fetch from cloud to local)
   const clearFormFields = () => setForm({
     amount: '',
     billNumber: '',
@@ -203,7 +230,7 @@ const HomePage = () => {
     comment: ''
   });
 
-  // --- Add Party ---
+  // === Add/Edit handlers
   const handleAddParty = async () => {
     const f = partyInput;
     if (f.businessName && f.phoneNumber && f.bankNumber && f.contactName && f.contactMobile && f.bankName) {
@@ -212,14 +239,10 @@ const HomePage = () => {
       setPartyInput({
         businessName: '', phoneNumber: '', bankNumber: '', contactName: '', contactMobile: '', bankName: ''
       });
-      // just reload all parties:
-      const snapshot = await getDocs(collection(db, "parties"));
-      setPartiesInfo(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       setShowPartyForm(false);
     } else alert('Please fill all fields.');
   };
 
-  // --- Add Purchase ---
   const handleAddPurchase = async () => {
     const { amount, billNumber, date } = form;
     if (!amount || !billNumber || !date || !selectedParty) {
@@ -234,9 +257,7 @@ const HomePage = () => {
     };
     await addDoc(collection(db, "purchases"), newPurchase);
     clearFormFields();
-    await refreshAllTransactionsFromFirestore();
   };
-
   const handleAddPayment = async () => {
     const { payment, paymentMethod, date, checkNumber } = form;
     const amountToPay = asNumber(payment);
@@ -259,15 +280,16 @@ const HomePage = () => {
     };
 
     await addDoc(collection(db, "payments"), newPayment);
-    // Update meta bank document in fireStore for non-cash
     if (paymentMethod !== 'Cash') {
       const updatedBalance = bankBalance - amountToPay;
       await setDoc(doc(db, "meta", "bank"), { balance: updatedBalance });
+      await addDoc(collection(db, "bankDeposits"), {
+        amount: -amountToPay,
+        date
+      });
     }
     clearFormFields();
-    await refreshAllTransactionsFromFirestore();
   };
-
   const handleAddReturn = async () => {
     const { returnAmount, returnDate, billNumber, comment } = form;
     if (!returnAmount || !returnDate || !selectedParty) {
@@ -280,29 +302,26 @@ const HomePage = () => {
       party: selectedParty,
       date: returnDate,
       billNumber: billNumber || null,
-      comment: comment
+      comment
     };
     await addDoc(collection(db, "returns"), newReturn);
     clearFormFields();
-    await refreshAllTransactionsFromFirestore();
   };
-
-  // --- Make bank deposits (optional, if you have deposit tracking; or skip this)
   const handleDeposit = async () => {
     const amount = asNumber(depositAmount);
     const dateToUse = depositDate || new Date().toISOString();
     if (amount > 0) {
       const updated = bankBalance + amount;
       await setDoc(doc(db, "meta", "bank"), { balance: updated });
-      // Optionally log deposit as a separate bankTransaction
-      clearFormFields();
+      await addDoc(collection(db, "bankDeposits"), {
+        amount,
+        date: dateToUse
+      });
       setDepositAmount('');
       setDepositDate('');
-      await refreshAllTransactionsFromFirestore();
     } else alert('Please enter a valid number');
   };
-
-  // --- Edit Transaction ---
+  // Edit
   const handleEditClick = (tx) => {
     setEditingTransaction(tx);
     setEditForm({
@@ -326,17 +345,15 @@ const HomePage = () => {
     let newData = { ...tx, ...editForm, amount: asNumber(editForm.amount), billNumber: editForm.billNumber || null, comment: editForm.comment || "" };
     await updateDoc(doc(db, coll, tx.id), newData);
     setEditingTransaction(null); setEditForm({});
-    await refreshAllTransactionsFromFirestore();
   };
   const handleEditCancel = () => { setEditingTransaction(null); setEditForm({}); };
 
-  // --- TABLE: central, always re-renders from derived state!
+  // Transaction Table (ascending date!)
   const TransactionTable = ({ transactions, onEdit, onSeeComment }) => {
-    const txs = transactions.slice().sort((a, b) => new Date(a.date) - new Date(b.date));
+    const txs = transactions.slice().sort((a, b) => new Date(a.date) - new Date(b.date)); // ascending
     const partyBalances = {};
     return (
       <div className="transaction-table-wrapper">
-        <button style={{ float: "right", margin: "6px" }} onClick={() => exportTransactionsCSV(txs)}>Export csv</button>
         <table className="transaction-table">
           <thead>
             <tr>
@@ -387,14 +404,15 @@ const HomePage = () => {
     );
   };
 
-  // --- Transaction history per section ---
   const SectionHistory = ({ type, party }) => {
     const sectionTx = (
       type === "purchase" ? purchaseTransactions :
       type === "payment" ? paymentTransactions : returnTransactions
-    ).filter(tx => tx.party === party)
-    .sort((a, b) => new Date(b.date) - new Date(a.date));
-    if (sectionTx.length === 0) return <div style={{marginTop:12,color:'#888'}}>No {type}s for this party.</div>;
+    )
+      .filter(tx => tx.party === party)
+      .sort((a, b) => new Date(a.date) - new Date(b.date)); // ASCENDING
+    if (sectionTx.length === 0)
+      return <div style={{marginTop:12,color:'#888'}}>No {type}s for this party.</div>;
     return (
       <div style={{marginTop:18}}>
         <h4>Recent {type.charAt(0).toUpperCase()+type.slice(1)} History</h4>
@@ -544,6 +562,31 @@ const HomePage = () => {
             <TransactionTable transactions={filteredTransactions} onEdit={handleEditClick} onSeeComment={setCommentTxModal} />
           </div>
         )}
+
+        {view === 'party' && (
+          <div className='form-container'>
+            <h2>All Parties</h2>
+            <PartyInfoTable parties={partiesInfo} />
+            <button
+              className="addPurchase-button"
+              onClick={() => setShowPartyForm(s => !s)}
+              style={{ margin: '18px 0 16px 0' }}>
+              {showPartyForm ? 'Cancel' : 'Add New Party'}
+            </button>
+            {showPartyForm && (
+              <div className="party-form">
+                <input placeholder="Business" value={partyInput.businessName} onChange={e => setPartyInput({ ...partyInput, businessName: e.target.value })} />
+                <input placeholder="Phone" value={partyInput.phoneNumber} onChange={e => setPartyInput({ ...partyInput, phoneNumber: e.target.value })} />
+                <input placeholder="Bank" value={partyInput.bankNumber} onChange={e => setPartyInput({ ...partyInput, bankNumber: e.target.value })} />
+                <input placeholder="Bank Name" value={partyInput.bankName} onChange={e => setPartyInput({ ...partyInput, bankName: e.target.value })} />
+                <input placeholder="Contact" value={partyInput.contactName} onChange={e => setPartyInput({ ...partyInput, contactName: e.target.value })} />
+                <input placeholder="Mobile" value={partyInput.contactMobile} onChange={e => setPartyInput({ ...partyInput, contactMobile: e.target.value })} />
+                <button onClick={handleAddParty} className="addPurchase-button">Save Party</button>
+              </div>
+            )}
+          </div>
+        )}
+
         {view === 'bank' && (
           <div className="form-container">
             <h2>Bank Balance: ₹{(bankBalance || 0).toFixed(2)}</h2>
@@ -551,46 +594,41 @@ const HomePage = () => {
             <input type="date" value={depositDate} onChange={e => setDepositDate(e.target.value)} placeholder="Enter deposit date" />
             <button onClick={handleDeposit} className="addPurchase-button">Deposit</button>
             <h2 style={{ marginTop: '20px' }}>Bank Transaction History</h2>
-            <TransactionTable transactions={getBankLedger()} onEdit={null} onSeeComment={null} />
+            <table className="transaction-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Party</th>
+                  <th>Method</th>
+                  <th>Check No.</th>
+                  <th>Debit</th>
+                  <th>Credit</th>
+                  <th>Balance</th>
+                </tr>
+              </thead>
+              <tbody>
+                {getBankLedger().map((entry, idx) => (
+                  <tr key={idx}>
+                    <td>{new Date(entry.date).toLocaleString()}</td>
+                    <td>{entry.party}</td>
+                    <td>{entry.method}</td>
+                    <td>{entry.checkNumber || '-'}</td>
+                    <td style={{ color: entry.debit ? 'red' : 'black' }}>
+                      {entry.debit ? `₹${entry.debit.toFixed(2)}` : '-'}
+                    </td>
+                    <td style={{ color: entry.credit ? 'green' : 'black' }}>
+                      {entry.credit ? `₹${entry.credit.toFixed(2)}` : '-'}
+                    </td>
+                    <td>₹{entry.balance.toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
     </div>
   );
 };
-import { collection, onSnapshot } from "firebase/firestore";
-
-// ... (state declarations)
-
-useEffect(() => {
-  // Listen for purchases in realtime
-  const unsubPurchases = onSnapshot(
-    collection(db, "purchases"),
-    (snapshot) => {
-      setPurchaseTransactions(snapshot.docs.map(doc => ({ id: doc.id, type: 'purchase', ...doc.data() })));
-    }
-  );
-  // Listen for payments in realtime
-  const unsubPayments = onSnapshot(
-    collection(db, "payments"),
-    (snapshot) => {
-      setPaymentTransactions(snapshot.docs.map(doc => ({ id: doc.id, type: 'payment', ...doc.data() })));
-    }
-  );
-  // Listen for returns in realtime
-  const unsubReturns = onSnapshot(
-    collection(db, "returns"),
-    (snapshot) => {
-      setReturnTransactions(snapshot.docs.map(doc => ({ id: doc.id, type: 'return', ...doc.data() })));
-    }
-  );
-
-  // Cleanup listeners on unmount
-  return () => {
-    unsubPurchases();
-    unsubPayments();
-    unsubReturns();
-  };
-}, []);
 
 export default HomePage;
