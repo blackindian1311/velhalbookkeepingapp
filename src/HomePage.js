@@ -558,5 +558,39 @@ const HomePage = () => {
     </div>
   );
 };
+import { collection, onSnapshot } from "firebase/firestore";
+
+// ... (state declarations)
+
+useEffect(() => {
+  // Listen for purchases in realtime
+  const unsubPurchases = onSnapshot(
+    collection(db, "purchases"),
+    (snapshot) => {
+      setPurchaseTransactions(snapshot.docs.map(doc => ({ id: doc.id, type: 'purchase', ...doc.data() })));
+    }
+  );
+  // Listen for payments in realtime
+  const unsubPayments = onSnapshot(
+    collection(db, "payments"),
+    (snapshot) => {
+      setPaymentTransactions(snapshot.docs.map(doc => ({ id: doc.id, type: 'payment', ...doc.data() })));
+    }
+  );
+  // Listen for returns in realtime
+  const unsubReturns = onSnapshot(
+    collection(db, "returns"),
+    (snapshot) => {
+      setReturnTransactions(snapshot.docs.map(doc => ({ id: doc.id, type: 'return', ...doc.data() })));
+    }
+  );
+
+  // Cleanup listeners on unmount
+  return () => {
+    unsubPurchases();
+    unsubPayments();
+    unsubReturns();
+  };
+}, []);
 
 export default HomePage;
