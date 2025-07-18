@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
 import { db } from "./firebase";
-import { collection, addDoc, updateDoc, doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
+import { collection, addDoc, updateDoc, doc, getDoc, setDoc, onSnapshot } from "firebase/firestore"
 
 // Helper for numbers
 const asNumber = v => Number(typeof v === "string" ? v.replace(/,/g, "") : v) || 0;
@@ -164,10 +164,10 @@ const HomePage = () => {
     };
   }, []);
 
-  // All transactions (ascending date order)
+  // All transactions (descending date order)
   const allTransactions = [
     ...purchaseTransactions, ...paymentTransactions, ...returnTransactions
-  ].sort((a, b) => new Date(a.date) - new Date(b.date));
+  ].sort((a, b) => new Date(b.date) - new Date(a.date));
 
   const filteredTransactions = selectedParty
     ? allTransactions.filter(tx => tx.party === selectedParty)
@@ -179,7 +179,7 @@ const HomePage = () => {
     return total;
   }, 0);
 
-  // BANK LEDGER: combined and ascending date order
+  // BANK LEDGER: combined and descending date order
   const getBankLedger = () => {
     let ledger = [];
     bankDeposits.forEach(d => {
@@ -206,15 +206,17 @@ const HomePage = () => {
         });
       }
     });
-    // ASCENDING sort!
-    ledger.sort((a, b) => new Date(a.date) - new Date(b.date));
+    // DESCENDING!
+    ledger.sort((a, b) => new Date(b.date) - new Date(a.date));
+    // To get correct running balance in descending, first sort ascending, compute balance, then reverse
+    let asc = ledger.slice().sort((a, b) => new Date(a.date) - new Date(b.date));
     let balance = 0;
-    const ledgerFinal = ledger.map(entry => {
+    const ledgerWithBalance = asc.map(entry => {
       if (entry.credit) balance += entry.credit;
       if (entry.debit) balance -= entry.debit;
       return { ...entry, balance };
     });
-    return ledgerFinal;
+    return ledgerWithBalance.reverse();
   };
 
   const clearFormFields = () => setForm({
@@ -348,10 +350,28 @@ const HomePage = () => {
   };
   const handleEditCancel = () => { setEditingTransaction(null); setEditForm({}); };
 
-  // Transaction Table (ascending date!)
+  // Transaction Table (descending date!)
   const TransactionTable = ({ transactions, onEdit, onSeeComment }) => {
-    const txs = transactions.slice().sort((a, b) => new Date(a.date) - new Date(b.date)); // ascending
+    const txs = transactions.slice().sort((a, b) => new Date(b.date) - new Date(a.date)); // DESCENDING
     const partyBalances = {};
+    // To get running balance per descending order, accumulate going backwards (so latest at top shows newest balance)
+    const runningBalances = {};
+    // collect all transactions for each party, sorted ASC for correct running calculation
+    const sortedByParty = {};
+    transactions.forEach(tx => {
+      if (!sortedByParty[tx.party]) sortedByParty[tx.party] = [];
+      sortedByParty[tx.party].push(tx);
+    });
+    Object.keys(sortedByParty).forEach(party => {
+      sortedByParty[party].sort((a, b) => new Date(a.date) - new Date(b.date));
+      let bal = 0;
+      sortedByParty[party].forEach(tx => {
+        if (tx.type === 'purchase') bal += asNumber(tx.amount);
+        if (tx.type === 'payment' || tx.type === 'return') bal -= asNumber(tx.amount);
+        runningBalances[tx.id] = bal;
+      });
+    });
+
     return (
       <div className="transaction-table-wrapper">
         <table className="transaction-table">
@@ -374,11 +394,8 @@ const HomePage = () => {
           <tbody>
             {txs.map((tx, i) => {
               const party = tx.party || "";
-              if (!partyBalances[party]) partyBalances[party] = 0;
               const debit = tx.type === 'purchase' ? asNumber(tx.amount) : null;
               const credit = (tx.type === 'payment' || tx.type === 'return') ? asNumber(tx.amount) : null;
-              partyBalances[party] += debit || 0; partyBalances[party] -= credit || 0;
-              const currentBalance = partyBalances[party];
               return (
                 <tr key={tx.id || i}>
                   <td>{tx.date}</td>
@@ -390,7 +407,7 @@ const HomePage = () => {
                   <td>₹{asNumber(tx.amount).toFixed(2)}</td>
                   <td>{debit !== null ? `₹${asNumber(debit).toFixed(2)}` : '-'}</td>
                   <td>{credit !== null ? `₹${asNumber(credit).toFixed(2)}` : '-'}</td>
-                  <td>₹{asNumber(currentBalance).toFixed(2)}</td>
+                  <td>₹{runningBalances[tx.id] !== undefined ? asNumber(runningBalances[tx.id]).toFixed(2) : '-'}</td>
                   <td><button onClick={() => onEdit ? onEdit(tx) : null}>Edit</button></td>
                   <td>{tx.comment ? (
                     <button onClick={() => onSeeComment && onSeeComment(tx)}>See Comment</button>
@@ -410,7 +427,7 @@ const HomePage = () => {
       type === "payment" ? paymentTransactions : returnTransactions
     )
       .filter(tx => tx.party === party)
-      .sort((a, b) => new Date(a.date) - new Date(b.date)); // ASCENDING
+      .sort((a, b) => new Date(b.date) - new Date(a.date)); // DESCENDING
     if (sectionTx.length === 0)
       return <div style={{marginTop:12,color:'#888'}}>No {type}s for this party.</div>;
     return (
