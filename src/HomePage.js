@@ -1,7 +1,7 @@
 import './App.css';
 import { db } from "./firebase";
 import { collection, addDoc, updateDoc, doc, getDoc, setDoc, onSnapshot } from "firebase/firestore"
-
+import React, { useState, useEffect } from 'react';
 // Helper for numbers
 const asNumber = v => Number(typeof v === "string" ? v.replace(/,/g, "") : v) || 0;
 
@@ -10,7 +10,7 @@ const PartyInfoTable = ({ parties = [] }) => {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const rowsPerPage = 7;
-import React, { useState, useEffect } from 'react';
+ }
 
   const filtered = parties
     .filter(p =>
@@ -71,7 +71,7 @@ import React, { useState, useEffect } from 'react';
       </div>
     </div>
   );
-};
+;
 
 // --- Modal for Comments
 function CommentModal({ tx, onClose }) {
