@@ -1,4 +1,3 @@
-import React, { useState, useEffect } from 'react';
 import './App.css';
 import { db } from "./firebase";
 import { collection, addDoc, updateDoc, doc, getDoc, setDoc, onSnapshot } from "firebase/firestore"
@@ -11,6 +10,7 @@ const PartyInfoTable = ({ parties = [] }) => {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const rowsPerPage = 7;
+import React, { useState, useEffect } from 'react';
 
   const filtered = parties
     .filter(p =>
