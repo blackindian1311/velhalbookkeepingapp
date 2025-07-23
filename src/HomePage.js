@@ -260,6 +260,7 @@ const HomePage = () => {
     await addDoc(collection(db, "purchases"), newPurchase);
     clearFormFields();
   };
+
   const handleAddPayment = async () => {
     const { payment, paymentMethod, date, checkNumber } = form;
     const amountToPay = asNumber(payment);
@@ -292,6 +293,7 @@ const HomePage = () => {
     }
     clearFormFields();
   };
+
   const handleAddReturn = async () => {
     const { returnAmount, returnDate, billNumber, comment } = form;
     if (!returnAmount || !returnDate || !selectedParty) {
@@ -309,6 +311,7 @@ const HomePage = () => {
     await addDoc(collection(db, "returns"), newReturn);
     clearFormFields();
   };
+
   const handleDeposit = async () => {
     const amount = asNumber(depositAmount);
     const dateToUse = depositDate || new Date().toISOString();
@@ -323,6 +326,7 @@ const HomePage = () => {
       setDepositDate('');
     } else alert('Please enter a valid number');
   };
+
   // Edit
   const handleEditClick = (tx) => {
     setEditingTransaction(tx);
@@ -535,7 +539,147 @@ const HomePage = () => {
           <div className='form-container'>
             <h2>Payment</h2>
             <select value={selectedParty} onChange={e => setSelectedParty(e.target.value)}>
-              <option value="">Select Party</option> 
-              
+              <option value="">Select Party</option>
+              {partiesInfo.map((p, i) => (
+                <option key={i} value={p.businessName}>{p.businessName}</option>
+              ))}
+            </select>
+            <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} />
+            <input type="number" placeholder="Amount" value={form.payment} onChange={e => setForm({ ...form, payment: e.target.value })} />
+            <select value={form.paymentMethod} onChange={e => setForm({ ...form, paymentMethod: e.target.value })}>
+              <option value="">Select Payment Method</option>
+              <option value="Cash">Cash</option>
+              <option value="NEFT">NEFT</option>
+              <option value="Check">Check</option>
+            </select>
+            {form.paymentMethod === 'Check' && (
+              <input
+                type="text"
+                placeholder="Enter Check Number"
+                value={form.checkNumber || ''}
+                onChange={e => setForm({ ...form, checkNumber: e.target.value })}
+              />
+            )}
+            <button className='addPurchase-button' onClick={handleAddPayment}>Add Payment</button>
+            <button className='clearForm-button' onClick={clearFormFields} style={{ marginLeft: 12 }}>Clear</button>
+            {selectedParty && (
+              <SectionHistory type="payment" party={selectedParty} />
+            )}
+          </div>
+        )}
+
+        {view === 'return' && (
+          <div className='form-container'>
+            <h2>Return</h2>
+            <select value={selectedParty} onChange={e => setSelectedParty(e.target.value)}>
+              <option value="">Select Party</option>
+              {partiesInfo.map((p, i) => <option key={i} value={p.businessName}>{p.businessName}</option>)}
+            </select>
+            <input type="number" placeholder="Return Amount" value={form.returnAmount} onChange={e => setForm({ ...form, returnAmount: e.target.value })} />
+            <input type="text" placeholder="Bill No" value={form.billNumber} onChange={e => setForm({ ...form, billNumber: e.target.value })} />
+            <input type="date" value={form.returnDate} onChange={e => setForm({ ...form, returnDate: e.target.value })} />
+            <textarea placeholder="Why was the product returned?" value={form.comment} onChange={e => setForm({ ...form, comment: e.target.value })} style={{width:'100%',minHeight:36,marginTop:8}} />
+            <button className='addPurchase-button' onClick={handleAddReturn}>Add Return</button>
+            <button className='clearForm-button' onClick={clearFormFields} style={{ marginLeft: 12 }}>Clear</button>
+            {selectedParty && (
+              <SectionHistory type="return" party={selectedParty} />
+            )}
+          </div>
+        )}
+
+        {view === 'balance' && (
+          <div className='form-container'>
+            <h2>Balance for: {selectedParty || 'None selected'}</h2>
+            <select value={selectedParty} onChange={e => setSelectedParty(e.target.value)}>
+              <option value="">Select Party</option>
+              {partiesInfo.map((p, i) => <option key={i} value={p.businessName}>{p.businessName}</option>)}
+            </select>
+            <p>Total Owed: ₹{(totalOwed || 0).toFixed(2)}</p>
+            <p>
+              Total GST on Purchases: ₹
+              {
+                filteredTransactions.filter(tx => tx.type === 'purchase')
+                  .reduce((sum, tx) => sum + (Number(tx.gstAmount) || 0), 0)
+                  .toFixed(2)
+              }
+            </p>
+            <TransactionTable transactions={filteredTransactions} onEdit={handleEditClick} onSeeComment={setCommentTxModal} />
+          </div>
+        )}
+
+        {view === 'party' && (
+          <div className='form-container'>
+            <h2>All Parties</h2>
+            <PartyInfoTable parties={partiesInfo} />
+            <button
+              className="addPurchase-button"
+              onClick={() => setShowPartyForm(s => !s)}
+              style={{ margin: '18px 0 16px 0' }}>
+              {showPartyForm ? 'Cancel' : 'Add New Party'}
+            </button>
+            {showPartyForm && (
+              <div className="party-form">
+                <input placeholder="Business" value={partyInput.businessName} onChange={e => setPartyInput({ ...partyInput, businessName: e.target.value })} />
+                <input placeholder="Phone" value={partyInput.phoneNumber} onChange={e => setPartyInput({ ...partyInput, phoneNumber: e.target.value })} />
+                <input placeholder="Bank" value={partyInput.bankNumber} onChange={e => setPartyInput({ ...partyInput, bankNumber: e.target.value })} />
+                <input placeholder="Bank Name" value={partyInput.bankName} onChange={e => setPartyInput({ ...partyInput, bankName: e.target.value })} />
+                <input placeholder="Contact" value={partyInput.contactName} onChange={e => setPartyInput({ ...partyInput, contactName: e.target.value })} />
+                <input placeholder="Mobile" value={partyInput.contactMobile} onChange={e => setPartyInput({ ...partyInput, contactMobile: e.target.value })} />
+                <button onClick={handleAddParty} className="addPurchase-button">Save Party</button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {view === 'bank' && (
+          <div className="form-container">
+            <h2>Bank Balance: ₹{(bankBalance || 0).toFixed(2)}</h2>
+            <input type="number" value={depositAmount} onChange={e => setDepositAmount(e.target.value)} placeholder="Enter deposit amount" />
+            <input type="date" value={depositDate} onChange={e => setDepositDate(e.target.value)} placeholder="Enter deposit date" />
+            <button onClick={handleDeposit} className="addPurchase-button">Deposit</button>
+            <h2 style={{ marginTop: '20px' }}>Bank Transaction History</h2>
+            <table className="transaction-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Party</th>
+                  <th>Method</th>
+                  <th>Check No.</th>
+                  <th>Debit</th>
+                  <th>Credit</th>
+                  <th>Balance</th>
+                </tr>
+              </thead>
+              <tbody>
+                {getBankLedger().map((entry, idx) => (
+                  <tr key={idx}>
+                    <td>{new Date(entry.date).toLocaleString()}</td>
+                    <td>{entry.party}</td>
+                    <td>{entry.method}</td>
+                    <td>{entry.checkNumber || '-'}</td>
+                    <td style={{ color: entry.debit ? 'red' : 'black' }}>
+                      {entry.debit ? `₹${entry.debit.toFixed(2)}` : '-'}
+                    </td>
+                    <td style={{ color: entry.credit ? 'green' : 'black' }}>
+                      {entry.credit ? `₹${entry.credit.toFixed(2)}` : '-'}
+                    </td>
+                    <td>₹{entry.balance.toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {view === 'salary' && (
+          <div className='form-container'>
+            <h2>Salary Payment</h2>
+            {/* Add your salary implementation here */}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 export default HomePage;
-  
