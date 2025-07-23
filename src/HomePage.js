@@ -150,17 +150,23 @@ const HomePage = () => {
     const unsubDeposits = onSnapshot(collection(db, "bankDeposits"), snap => {
       setBankDeposits(snap.docs.map(doc => ({ ...doc.data() })));
     });
-    async function fetchBankBalance() {
-      const bdoc = await getDoc(doc(db, "meta", "bank"));
-      setBankBalance(bdoc.exists() ? bdoc.data().balance : 0);
-    }
-    fetchBankBalance();
+    
+    // Real-time listener for bank balance - AUTO REFRESH
+    const unsubBankBalance = onSnapshot(doc(db, "meta", "bank"), (docSnap) => {
+      if (docSnap.exists()) {
+        setBankBalance(docSnap.data().balance || 0);
+      } else {
+        setBankBalance(0);
+      }
+    });
+
     return () => {
       partySnap();
       unsubPurch();
       unsubPay();
       unsubRet();
       unsubDeposits();
+      unsubBankBalance(); // Clean up bank balance listener
     };
   }, []);
 
@@ -179,20 +185,27 @@ const HomePage = () => {
     return total;
   }, 0);
 
-  // BANK LEDGER: combined and descending date order
+  // FIXED BANK LEDGER: properly handles deposits and payments without duplication
   const getBankLedger = () => {
     let ledger = [];
+    
+    // Add manual deposits/withdrawals from bankDeposits collection
     bankDeposits.forEach(d => {
-      ledger.push({
-        date: d.date,
-        party: '-',
-        method: 'Deposit',
-        checkNumber: '-',
-        debit: d.amount < 0 ? Math.abs(asNumber(d.amount)) : null,
-        credit: d.amount > 0 ? asNumber(d.amount) : null,
-        type: 'deposit'
-      });
+      // Skip negative amounts that are created by payment transactions to avoid duplication
+      if (d.isPaymentDeduction !== true) {
+        ledger.push({
+          date: d.date,
+          party: d.party || '-',
+          method: 'Deposit',
+          checkNumber: '-',
+          debit: d.amount < 0 ? Math.abs(asNumber(d.amount)) : null,
+          credit: d.amount > 0 ? asNumber(d.amount) : null,
+          type: 'deposit'
+        });
+      }
     });
+
+    // Add NEFT/Check payments as debits
     paymentTransactions.forEach(p => {
       if (p.method === "NEFT" || p.method === "Check") {
         ledger.push({
@@ -206,9 +219,11 @@ const HomePage = () => {
         });
       }
     });
-    // DESCENDING!
+
+    // Sort by date (descending)
     ledger.sort((a, b) => new Date(b.date) - new Date(a.date));
-    // To get correct running balance in descending, first sort ascending, compute balance, then reverse
+    
+    // Calculate running balance (ascending order first, then reverse)
     let asc = ledger.slice().sort((a, b) => new Date(a.date) - new Date(b.date));
     let balance = 0;
     const ledgerWithBalance = asc.map(entry => {
@@ -283,12 +298,19 @@ const HomePage = () => {
     };
 
     await addDoc(collection(db, "payments"), newPayment);
+    
+    // For non-cash payments, update bank balance
     if (paymentMethod !== 'Cash') {
       const updatedBalance = bankBalance - amountToPay;
       await setDoc(doc(db, "meta", "bank"), { balance: updatedBalance });
+      
+      // Add a bank deposit entry marked as payment deduction to avoid duplication in ledger
       await addDoc(collection(db, "bankDeposits"), {
         amount: -amountToPay,
-        date
+        date,
+        party: selectedParty,
+        isPaymentDeduction: true, // Flag to identify this is from a payment
+        paymentMethod: paymentMethod
       });
     }
     clearFormFields();
@@ -317,10 +339,13 @@ const HomePage = () => {
     const dateToUse = depositDate || new Date().toISOString();
     if (amount > 0) {
       const updated = bankBalance + amount;
+      // Update bank balance
       await setDoc(doc(db, "meta", "bank"), { balance: updated });
+      // Add deposit entry
       await addDoc(collection(db, "bankDeposits"), {
         amount,
-        date: dateToUse
+        date: dateToUse,
+        isPaymentDeduction: false // This is a manual deposit
       });
       setDepositAmount('');
       setDepositDate('');
