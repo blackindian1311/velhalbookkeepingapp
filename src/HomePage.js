@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 import { db } from "./firebase";
 import { collection, addDoc, updateDoc, doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+
 import 'jspdf-autotable';
 
 // Helper for numbers
 const asNumber = v => Number(typeof v === "string" ? v.replace(/,/g, "") : v) || 0;
+
 
 const PartyInfoTable = ({ parties = [] }) => {
   const [search, setSearch] = useState('');
@@ -605,7 +605,7 @@ const HomePage = () => {
   const handleEditCancel = () => { setEditingTransaction(null); setEditForm({}); };
 
   const TransactionTable = ({ transactions, onEdit, onSeeComment }) => {
-    const txs = transactions.slice().sort((a, b) => new Date(b.date) - new Date(a, b.date));
+    const txs = transactions.slice().sort((a, b) => new Date(b.date) - new Date(a.date)); // FIXED: was a,b.date
     const runningBalances = {};
     const sortedByParty = {};
     transactions.forEach(tx => {
