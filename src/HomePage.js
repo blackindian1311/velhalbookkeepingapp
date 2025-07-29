@@ -74,6 +74,7 @@ const PartyInfoTable = ({ parties = [] }) => {
     </div>
   );
 };
+
 function CommentModal({ tx, onClose }) {
   if (!tx) return null;
   return (
@@ -133,6 +134,24 @@ const HomePage = () => {
   });
   const [showPartyForm, setShowPartyForm] = useState(false);
 
+  // Date filter states for each view
+  const [homeFilterStart, setHomeFilterStart] = useState('');
+  const [homeFilterEnd, setHomeFilterEnd] = useState('');
+  const [purchaseFilterStart, setPurchaseFilterStart] = useState('');
+  const [purchaseFilterEnd, setPurchaseFilterEnd] = useState('');
+  const [paymentFilterStart, setPaymentFilterStart] = useState('');
+  const [paymentFilterEnd, setPaymentFilterEnd] = useState('');
+  const [returnFilterStart, setReturnFilterStart] = useState('');
+  const [returnFilterEnd, setReturnFilterEnd] = useState('');
+  const [balanceFilterStart, setBalanceFilterStart] = useState('');
+  const [balanceFilterEnd, setBalanceFilterEnd] = useState('');
+  const [bankFilterStart, setBankFilterStart] = useState('');
+  const [bankFilterEnd, setBankFilterEnd] = useState('');
+
+  // Export date range
+  const [exportStartDate, setExportStartDate] = useState('');
+  const [exportEndDate, setExportEndDate] = useState('');
+
   // Real-time listeners for all main Firestore collections
   useEffect(() => {
     const partySnap = onSnapshot(collection(db, "parties"), snapshot => {
@@ -151,7 +170,6 @@ const HomePage = () => {
       setBankDeposits(snap.docs.map(doc => ({ ...doc.data() })));
     });
     
-    // Real-time listener for bank balance - AUTO REFRESH
     const unsubBankBalance = onSnapshot(doc(db, "meta", "bank"), (docSnap) => {
       if (docSnap.exists()) {
         setBankBalance(docSnap.data().balance || 0);
@@ -166,20 +184,39 @@ const HomePage = () => {
       unsubPay();
       unsubRet();
       unsubDeposits();
-      unsubBankBalance(); // Clean up bank balance listener
+      unsubBankBalance();
     };
   }, []);
+
+  // Filter transactions by date range
+  const filterTransactionsByDate = (transactions, startDate, endDate) => {
+    if (!startDate || !endDate) return transactions;
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+    
+    return transactions.filter(tx => {
+      const txDate = new Date(tx.date);
+      return txDate >= start && txDate <= end;
+    });
+  };
 
   // All transactions (descending date order)
   const allTransactions = [
     ...purchaseTransactions, ...paymentTransactions, ...returnTransactions
   ].sort((a, b) => new Date(b.date) - new Date(a.date));
 
+  // Filtered transactions for home view
+  const homeFilteredTransactions = filterTransactionsByDate(allTransactions, homeFilterStart, homeFilterEnd);
+
   const filteredTransactions = selectedParty
     ? allTransactions.filter(tx => tx.party === selectedParty)
     : allTransactions;
 
-  const totalOwed = filteredTransactions.reduce((total, tx) => {
+  // Balance filtered transactions
+  const balanceFilteredTransactions = filterTransactionsByDate(filteredTransactions, balanceFilterStart, balanceFilterEnd);
+
+  const totalOwed = balanceFilteredTransactions.reduce((total, tx) => {
     if (tx.type === 'purchase') return total + asNumber(tx.amount);
     if (tx.type === 'payment' || tx.type === 'return') return total - asNumber(tx.amount);
     return total;
@@ -189,9 +226,7 @@ const HomePage = () => {
   const getBankLedger = () => {
     let ledger = [];
     
-    // Add manual deposits/withdrawals from bankDeposits collection
     bankDeposits.forEach(d => {
-      // Skip negative amounts that are created by payment transactions to avoid duplication
       if (d.isPaymentDeduction !== true) {
         ledger.push({
           date: d.date,
@@ -205,7 +240,6 @@ const HomePage = () => {
       }
     });
 
-    // Add NEFT/Check payments as debits
     paymentTransactions.forEach(p => {
       if (p.method === "NEFT" || p.method === "Check") {
         ledger.push({
@@ -220,10 +254,8 @@ const HomePage = () => {
       }
     });
 
-    // Sort by date (descending)
     ledger.sort((a, b) => new Date(b.date) - new Date(a.date));
     
-    // Calculate running balance (ascending order first, then reverse)
     let asc = ledger.slice().sort((a, b) => new Date(a.date) - new Date(b.date));
     let balance = 0;
     const ledgerWithBalance = asc.map(entry => {
@@ -233,6 +265,9 @@ const HomePage = () => {
     });
     return ledgerWithBalance.reverse();
   };
+
+  // Filtered bank ledger
+  const filteredBankLedger = filterTransactionsByDate(getBankLedger(), bankFilterStart, bankFilterEnd);
 
   const clearFormFields = () => setForm({
     amount: '',
@@ -246,6 +281,202 @@ const HomePage = () => {
     salaryPaymentName: '',
     comment: ''
   });
+
+  // Download CSV helper
+  const downloadCSV = (filename, rows) => {
+    const csvContent = rows.map(row => 
+      row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+    ).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // Download PDF helper
+  const downloadPDF = (filename, title, data, headers) => {
+    const doc = new jsPDF();
+    doc.text(title, 14, 15);
+    
+    autoTable(doc, {
+      startY: 25,
+      head: [headers],
+      body: data,
+      theme: 'striped',
+      headStyles: { fillColor: [41, 128, 185] }
+    });
+    
+    doc.save(filename);
+  };
+
+  // Download functions for each section
+  const downloadAllTransactions = (format) => {
+    const headers = ['Date', 'Party', 'Type', 'Amount', 'GST', 'Method', 'Bill No', 'Check No', 'Comment'];
+    const data = homeFilteredTransactions.map(tx => [
+      tx.date,
+      tx.party,
+      tx.type,
+      `₹${asNumber(tx.amount).toFixed(2)}`,
+      tx.type === 'purchase' ? `₹${(tx.gstAmount || 0).toFixed(2)}` : '-',
+      tx.method || '-',
+      tx.billNumber || '-',
+      tx.checkNumber || '-',
+      tx.comment || '-'
+    ]);
+
+    if (format === 'csv') {
+      downloadCSV('all_transactions.csv', [headers, ...data]);
+    } else {
+      downloadPDF('all_transactions.pdf', 'All Transactions Report', data, headers);
+    }
+  };
+
+  const downloadPurchaseHistory = (format) => {
+    const filtered = filterTransactionsByDate(
+      purchaseTransactions.filter(tx => !selectedParty || tx.party === selectedParty),
+      purchaseFilterStart, 
+      purchaseFilterEnd
+    );
+    const headers = ['Date', 'Party', 'Amount', 'GST', 'Bill No', 'Comment'];
+    const data = filtered.map(tx => [
+      tx.date,
+      tx.party,
+      `₹${asNumber(tx.amount).toFixed(2)}`,
+      `₹${(tx.gstAmount || 0).toFixed(2)}`,
+      tx.billNumber || '-',
+      tx.comment || '-'
+    ]);
+
+    if (format === 'csv') {
+      downloadCSV('purchase_history.csv', [headers, ...data]);
+    } else {
+      downloadPDF('purchase_history.pdf', 'Purchase History Report', data, headers);
+    }
+  };
+
+  const downloadPaymentHistory = (format) => {
+    const filtered = filterTransactionsByDate(
+      paymentTransactions.filter(tx => !selectedParty || tx.party === selectedParty),
+      paymentFilterStart, 
+      paymentFilterEnd
+    );
+    const headers = ['Date', 'Party', 'Amount', 'Method', 'Check No', 'Comment'];
+    const data = filtered.map(tx => [
+      tx.date,
+      tx.party,
+      `₹${asNumber(tx.amount).toFixed(2)}`,
+      tx.method || '-',
+      tx.checkNumber || '-',
+      tx.comment || '-'
+    ]);
+
+    if (format === 'csv') {
+      downloadCSV('payment_history.csv', [headers, ...data]);
+    } else {
+      downloadPDF('payment_history.pdf', 'Payment History Report', data, headers);
+    }
+  };
+
+  const downloadReturnHistory = (format) => {
+    const filtered = filterTransactionsByDate(
+      returnTransactions.filter(tx => !selectedParty || tx.party === selectedParty),
+      returnFilterStart, 
+      returnFilterEnd
+    );
+    const headers = ['Date', 'Party', 'Amount', 'Bill No', 'Comment'];
+    const data = filtered.map(tx => [
+      tx.date,
+      tx.party,
+      `₹${asNumber(tx.amount).toFixed(2)}`,
+      tx.billNumber || '-',
+      tx.comment || '-'
+    ]);
+
+    if (format === 'csv') {
+      downloadCSV('return_history.csv', [headers, ...data]);
+    } else {
+      downloadPDF('return_history.pdf', 'Return History Report', data, headers);
+    }
+  };
+
+  const downloadBalanceHistory = (format) => {
+    const headers = ['Date', 'Party', 'Type', 'Amount', 'GST', 'Method', 'Bill No', 'Comment'];
+    const data = balanceFilteredTransactions.map(tx => [
+      tx.date,
+      tx.party,
+      tx.type,
+      `₹${asNumber(tx.amount).toFixed(2)}`,
+      tx.type === 'purchase' ? `₹${(tx.gstAmount || 0).toFixed(2)}` : '-',
+      tx.method || '-',
+      tx.billNumber || '-',
+      tx.comment || '-'
+    ]);
+
+    if (format === 'csv') {
+      downloadCSV('balance_history.csv', [headers, ...data]);
+    } else {
+      downloadPDF('balance_history.pdf', 'Balance History Report', data, headers);
+    }
+  };
+
+  const downloadBankHistory = (format) => {
+    const headers = ['Date', 'Party', 'Method', 'Check No', 'Debit', 'Credit', 'Balance'];
+    const data = filteredBankLedger.map(entry => [
+      entry.date,
+      entry.party,
+      entry.method,
+      entry.checkNumber || '-',
+      entry.debit ? `₹${entry.debit.toFixed(2)}` : '-',
+      entry.credit ? `₹${entry.credit.toFixed(2)}` : '-',
+      `₹${entry.balance.toFixed(2)}`
+    ]);
+
+    if (format === 'csv') {
+      downloadCSV('bank_history.csv', [headers, ...data]);
+    } else {
+      downloadPDF('bank_history.pdf', 'Bank Transaction History', data, headers);
+    }
+  };
+
+  // Date filter component
+  const DateFilter = ({ startDate, setStartDate, endDate, setEndDate, label }) => (
+    <div style={{ margin: '10px 0', padding: '10px', border: '1px solid #ddd', borderRadius: '5px' }}>
+      <h4>{label} Date Filter:</h4>
+      <label>From: 
+        <input 
+          type="date" 
+          value={startDate} 
+          onChange={e => setStartDate(e.target.value)}
+          style={{ marginLeft: '5px', marginRight: '15px' }}
+        />
+      </label>
+      <label>To: 
+        <input 
+          type="date" 
+          value={endDate} 
+          onChange={e => setEndDate(e.target.value)}
+          style={{ marginLeft: '5px' }}
+        />
+      </label>
+    </div>
+  );
+
+  // Download buttons component
+  const DownloadButtons = ({ onDownloadCSV, onDownloadPDF }) => (
+    <div style={{ margin: '10px 0' }}>
+      <button onClick={() => onDownloadCSV('csv')} style={{ marginRight: '10px', padding: '8px 16px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '4px' }}>
+        Download CSV
+      </button>
+      <button onClick={() => onDownloadPDF('pdf')} style={{ padding: '8px 16px', backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '4px' }}>
+        Download PDF
+      </button>
+    </div>
+  );
 
   const handleAddParty = async () => {
     const f = partyInput;
@@ -298,17 +529,15 @@ const HomePage = () => {
 
     await addDoc(collection(db, "payments"), newPayment);
     
-    // For non-cash payments, update bank balance
     if (paymentMethod !== 'Cash') {
       const updatedBalance = bankBalance - amountToPay;
       await setDoc(doc(db, "meta", "bank"), { balance: updatedBalance });
       
-      // Add a bank deposit entry marked as payment deduction to avoid duplication in ledger
       await addDoc(collection(db, "bankDeposits"), {
         amount: -amountToPay,
         date,
         party: selectedParty,
-        isPaymentDeduction: true, // Flag to identify this is from a payment
+        isPaymentDeduction: true,
         paymentMethod: paymentMethod
       });
     }
@@ -338,13 +567,11 @@ const HomePage = () => {
     const dateToUse = depositDate || new Date().toISOString();
     if (amount > 0) {
       const updated = bankBalance + amount;
-      // Update bank balance
       await setDoc(doc(db, "meta", "bank"), { balance: updated });
-      // Add deposit entry
       await addDoc(collection(db, "bankDeposits"), {
         amount,
         date: dateToUse,
-        isPaymentDeduction: false // This is a manual deposit
+        isPaymentDeduction: false
       });
       setDepositAmount('');
       setDepositDate('');
@@ -378,8 +605,7 @@ const HomePage = () => {
   const handleEditCancel = () => { setEditingTransaction(null); setEditForm({}); };
 
   const TransactionTable = ({ transactions, onEdit, onSeeComment }) => {
-    const txs = transactions.slice().sort((a, b) => new Date(b.date) - new Date(a.date)); // DESCENDING
-    // Running balance logic per party
+    const txs = transactions.slice().sort((a, b) => new Date(b.date) - new Date(a, b.date));
     const runningBalances = {};
     const sortedByParty = {};
     transactions.forEach(tx => {
@@ -453,12 +679,22 @@ const HomePage = () => {
   };
 
   const SectionHistory = ({ type, party }) => {
-    const sectionTx = (
+    let sectionTx = (
       type === "purchase" ? purchaseTransactions :
       type === "payment" ? paymentTransactions : returnTransactions
-    )
-      .filter(tx => tx.party === party)
-      .sort((a, b) => new Date(b.date) - new Date(a.date)); // DESCENDING
+    ).filter(tx => tx.party === party);
+
+    // Apply date filter based on type
+    if (type === "purchase") {
+      sectionTx = filterTransactionsByDate(sectionTx, purchaseFilterStart, purchaseFilterEnd);
+    } else if (type === "payment") {
+      sectionTx = filterTransactionsByDate(sectionTx, paymentFilterStart, paymentFilterEnd);
+    } else if (type === "return") {
+      sectionTx = filterTransactionsByDate(sectionTx, returnFilterStart, returnFilterEnd);
+    }
+
+    sectionTx = sectionTx.sort((a, b) => new Date(b.date) - new Date(a.date));
+
     if (sectionTx.length === 0)
       return <div style={{marginTop:12,color:'#888'}}>No {type}s for this party.</div>;
     return (
@@ -469,120 +705,99 @@ const HomePage = () => {
     );
   };
 
-  const downloadCSV = (filename, rows) => {
-  const csvContent = rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.setAttribute('download', filename);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-};
+  const exportAllData = () => {
+    const from = new Date(exportStartDate);
+    const to = new Date(exportEndDate);
+    to.setHours(23, 59, 59, 999);
 
-// PDF export helper placeholder
-const exportPDF = () => {
-  const from = new Date(exportStartDate);
-  const to = new Date(exportEndDate);
-  to.setHours(23, 59, 59, 999);
+    const allTxRows = [
+      ['Date', 'Party', 'Type', 'Amount', 'GST', 'Method', 'Bill No', 'Check No', 'Comment']
+    ];
+    allTransactions.forEach(tx => {
+      const txDate = new Date(tx.date);
+      if (txDate >= from && txDate <= to) {
+        allTxRows.push([
+          tx.date,
+          tx.party,
+          tx.type,
+          asNumber(tx.amount),
+          tx.gstAmount || '',
+          tx.method || '',
+          tx.billNumber || '',
+          tx.checkNumber || '',
+          tx.comment || ''
+        ]);
+      }
+    });
 
-  const doc = new jsPDF();
-  doc.text("Velhal Bookkeeping Summary", 14, 15);
-
-  const txRows = allTransactions.filter(tx => {
-    const txDate = new Date(tx.date);
-    return txDate >= from && txDate <= to;
-  }).map(tx => [
-    tx.date,
-    tx.party,
-    tx.type,
-    asNumber(tx.amount),
-    tx.method || '',
-    tx.billNumber || '',
-    tx.checkNumber || ''
-  ]);
-
-  autoTable(doc, {
-  startY: 20,
-  head: [["Date", "Party", "Type", "Amount", "Method", "Bill No", "Check No"]],
-  body: txRows,
-  theme: 'striped',
-  headStyles: { fillColor: [41, 128, 185] }
-});
-
-
-  doc.save("velhal_summary.pdf");
-};
-// State for export date range
-const [exportStartDate, setExportStartDate] = useState('');
-const [exportEndDate, setExportEndDate] = useState('');
-
-// In the HomePage component:
-// Add this function
-const exportAllData = () => {
-  const from = new Date(exportStartDate);
-  const to = new Date(exportEndDate);
-  to.setHours(23, 59, 59, 999);
-
-  const allTxRows = [
-    ['Date', 'Party', 'Type', 'Amount', 'GST', 'Method', 'Bill No', 'Check No', 'Comment']
-  ];
-  allTransactions.forEach(tx => {
-    const txDate = new Date(tx.date);
-    if (txDate >= from && txDate <= to) {
-      allTxRows.push([
-        tx.date,
-        tx.party,
-        tx.type,
-        asNumber(tx.amount),
-        tx.gstAmount || '',
-        tx.method || '',
-        tx.billNumber || '',
-        tx.checkNumber || '',
-        tx.comment || ''
+    const partyRows = [
+      ['Business', 'Phone', 'Bank', 'Bank Name', 'Contact', 'Mobile']
+    ];
+    partiesInfo.forEach(p => {
+      partyRows.push([
+        p.businessName,
+        p.phoneNumber,
+        p.bankNumber,
+        p.bankName,
+        p.contactName,
+        p.contactMobile
       ]);
-    }
-  });
+    });
 
-  const partyRows = [
-    ['Business', 'Phone', 'Bank', 'Bank Name', 'Contact', 'Mobile']
-  ];
-  partiesInfo.forEach(p => {
-    partyRows.push([
-      p.businessName,
-      p.phoneNumber,
-      p.bankNumber,
-      p.bankName,
-      p.contactName,
-      p.contactMobile
+    const bankRows = [
+      ['Date', 'Party', 'Method', 'Check No.', 'Debit', 'Credit', 'Balance']
+    ];
+    getBankLedger().forEach(entry => {
+      const entryDate = new Date(entry.date);
+      if (entryDate >= from && entryDate <= to) {
+        bankRows.push([
+          entry.date,
+          entry.party,
+          entry.method,
+          entry.checkNumber || '-',
+          entry.debit || '',
+          entry.credit || '',
+          entry.balance || ''
+        ]);
+      }
+    });
+
+    downloadCSV('transactions_filtered.csv', allTxRows);
+    downloadCSV('parties.csv', partyRows);
+    downloadCSV('bank_ledger_filtered.csv', bankRows);
+  };
+
+  const exportPDF = () => {
+    const from = new Date(exportStartDate);
+    const to = new Date(exportEndDate);
+    to.setHours(23, 59, 59, 999);
+
+    const doc = new jsPDF();
+    doc.text("Velhal Bookkeeping Summary", 14, 15);
+
+    const txRows = allTransactions.filter(tx => {
+      const txDate = new Date(tx.date);
+      return txDate >= from && txDate <= to;
+    }).map(tx => [
+      tx.date,
+      tx.party,
+      tx.type,
+      asNumber(tx.amount),
+      tx.method || '',
+      tx.billNumber || '',
+      tx.checkNumber || ''
     ]);
-  });
 
-  const bankRows = [
-    ['Date', 'Party', 'Method', 'Check No.', 'Debit', 'Credit', 'Balance']
-  ];
-  getBankLedger().forEach(entry => {
-    const entryDate = new Date(entry.date);
-    if (entryDate >= from && entryDate <= to) {
-      bankRows.push([
-        entry.date,
-        entry.party,
-        entry.method,
-        entry.checkNumber || '-',
-        entry.debit || '',
-        entry.credit || '',
-        entry.balance || ''
-      ]);
-    }
-  });
+    autoTable(doc, {
+      startY: 20,
+      head: [["Date", "Party", "Type", "Amount", "Method", "Bill No", "Check No"]],
+      body: txRows,
+      theme: 'striped',
+      headStyles: { fillColor: [41, 128, 185] }
+    });
 
-  downloadCSV('transactions_filtered.csv', allTxRows);
-  downloadCSV('parties.csv', partyRows);
-  downloadCSV('bank_ledger_filtered.csv', bankRows);
-};
-
+    doc.save("velhal_summary.pdf");
+  };
   
   return (
     <div className="home-page">
@@ -637,17 +852,32 @@ const exportAllData = () => {
               <span style={{fontWeight: 'normal'}}>
                 Total GST on Purchases: ₹
                 {
-                  allTransactions.filter(tx => tx.type === 'purchase')
+                  homeFilteredTransactions.filter(tx => tx.type === 'purchase')
                     .reduce((sum, tx) => sum + (Number(tx.gstAmount) || 0), 0)
                     .toFixed(2)
                 }
               </span>
             </h4>
+            
+            <DateFilter 
+              startDate={homeFilterStart}
+              setStartDate={setHomeFilterStart}
+              endDate={homeFilterEnd}
+              setEndDate={setHomeFilterEnd}
+              label="All Transactions"
+            />
+            
+            <DownloadButtons 
+              onDownloadCSV={() => downloadAllTransactions('csv')}
+              onDownloadPDF={() => downloadAllTransactions('pdf')}
+            />
+
             <label>From: <input type="date" value={exportStartDate} onChange={e => setExportStartDate(e.target.value)} /></label>
             <label style={{ marginLeft: '12px' }}>To: <input type="date" value={exportEndDate} onChange={e => setExportEndDate(e.target.value)} /></label>
             <button onClick={exportAllData} style={{ marginLeft: '12px' }}>Export All (CSV)</button>
             <button onClick={exportPDF} style={{ marginLeft: '6px' }}>Export All (PDF)</button>
-            <TransactionTable transactions={allTransactions} onEdit={handleEditClick} onSeeComment={setCommentTxModal}/>
+            
+            <TransactionTable transactions={homeFilteredTransactions} onEdit={handleEditClick} onSeeComment={setCommentTxModal}/>
           </>
         )}
 
@@ -669,6 +899,20 @@ const exportAllData = () => {
                 <p>Total after GST: ₹{Math.round(asNumber(form.amount) * 1.05)}</p>
               </div>
             )}
+            
+            <DateFilter 
+              startDate={purchaseFilterStart}
+              setStartDate={setPurchaseFilterStart}
+              endDate={purchaseFilterEnd}
+              setEndDate={setPurchaseFilterEnd}
+              label="Purchase History"
+            />
+            
+            <DownloadButtons 
+              onDownloadCSV={() => downloadPurchaseHistory('csv')}
+              onDownloadPDF={() => downloadPurchaseHistory('pdf')}
+            />
+            
             {selectedParty && (
               <SectionHistory type="purchase" party={selectedParty} />
             )}
@@ -702,6 +946,20 @@ const exportAllData = () => {
             )}
             <button className='addPurchase-button' onClick={handleAddPayment}>Add Payment</button>
             <button className='clearForm-button' onClick={clearFormFields} style={{ marginLeft: 12 }}>Clear</button>
+            
+            <DateFilter 
+              startDate={paymentFilterStart}
+              setStartDate={setPaymentFilterStart}
+              endDate={paymentFilterEnd}
+              setEndDate={setPaymentFilterEnd}
+              label="Payment History"
+            />
+            
+            <DownloadButtons 
+              onDownloadCSV={() => downloadPaymentHistory('csv')}
+              onDownloadPDF={() => downloadPaymentHistory('pdf')}
+            />
+            
             {selectedParty && (
               <SectionHistory type="payment" party={selectedParty} />
             )}
@@ -721,6 +979,20 @@ const exportAllData = () => {
             <textarea placeholder="Why was the product returned?" value={form.comment} onChange={e => setForm({ ...form, comment: e.target.value })} style={{width:'100%',minHeight:36,marginTop:8}} />
             <button className='addPurchase-button' onClick={handleAddReturn}>Add Return</button>
             <button className='clearForm-button' onClick={clearFormFields} style={{ marginLeft: 12 }}>Clear</button>
+            
+            <DateFilter 
+              startDate={returnFilterStart}
+              setStartDate={setReturnFilterStart}
+              endDate={returnFilterEnd}
+              setEndDate={setReturnFilterEnd}
+              label="Return History"
+            />
+            
+            <DownloadButtons 
+              onDownloadCSV={() => downloadReturnHistory('csv')}
+              onDownloadPDF={() => downloadReturnHistory('pdf')}
+            />
+            
             {selectedParty && (
               <SectionHistory type="return" party={selectedParty} />
             )}
@@ -738,12 +1010,26 @@ const exportAllData = () => {
             <p>
               Total GST on Purchases: ₹
               {
-                filteredTransactions.filter(tx => tx.type === 'purchase')
+                balanceFilteredTransactions.filter(tx => tx.type === 'purchase')
                   .reduce((sum, tx) => sum + (Number(tx.gstAmount) || 0), 0)
                   .toFixed(2)
               }
             </p>
-            <TransactionTable transactions={filteredTransactions} onEdit={handleEditClick} onSeeComment={setCommentTxModal} />
+            
+            <DateFilter 
+              startDate={balanceFilterStart}
+              setStartDate={setBalanceFilterStart}
+              endDate={balanceFilterEnd}
+              setEndDate={setBalanceFilterEnd}
+              label="Balance History"
+            />
+            
+            <DownloadButtons 
+              onDownloadCSV={() => downloadBalanceHistory('csv')}
+              onDownloadPDF={() => downloadBalanceHistory('pdf')}
+            />
+            
+            <TransactionTable transactions={balanceFilteredTransactions} onEdit={handleEditClick} onSeeComment={setCommentTxModal} />
           </div>
         )}
 
@@ -777,6 +1063,20 @@ const exportAllData = () => {
             <input type="number" value={depositAmount} onChange={e => setDepositAmount(e.target.value)} placeholder="Enter deposit amount" />
             <input type="date" value={depositDate} onChange={e => setDepositDate(e.target.value)} placeholder="Enter deposit date" />
             <button onClick={handleDeposit} className="addPurchase-button">Deposit</button>
+            
+            <DateFilter 
+              startDate={bankFilterStart}
+              setStartDate={setBankFilterStart}
+              endDate={bankFilterEnd}
+              setEndDate={setBankFilterEnd}
+              label="Bank Transaction History"
+            />
+            
+            <DownloadButtons 
+              onDownloadCSV={() => downloadBankHistory('csv')}
+              onDownloadPDF={() => downloadBankHistory('pdf')}
+            />
+            
             <h2 style={{ marginTop: '20px' }}>Bank Transaction History</h2>
             <table className="transaction-table">
               <thead>
@@ -791,7 +1091,7 @@ const exportAllData = () => {
                 </tr>
               </thead>
               <tbody>
-                {getBankLedger().map((entry, idx) => (
+                {filteredBankLedger.map((entry, idx) => (
                   <tr key={idx}>
                     <td>{new Date(entry.date).toLocaleString()}</td>
                     <td>{entry.party}</td>
