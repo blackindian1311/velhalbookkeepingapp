@@ -3,7 +3,7 @@ import './App.css';
 import { db } from "./firebase";
 import { collection, addDoc, updateDoc, doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
 
-import 'jspdf-autotable';
+
 
 // Helper for numbers
 const asNumber = v => Number(typeof v === "string" ? v.replace(/,/g, "") : v) || 0;
