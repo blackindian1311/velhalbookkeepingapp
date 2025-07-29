@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 import { db } from "./firebase";
 import { collection, addDoc, updateDoc, doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import 'jspdf-autotable';
 
 // Helper for numbers
 const asNumber = v => Number(typeof v === "string" ? v.replace(/,/g, "") : v) || 0;
 
-// --- Party Info Table ---
 const PartyInfoTable = ({ parties = [] }) => {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -72,8 +74,6 @@ const PartyInfoTable = ({ parties = [] }) => {
     </div>
   );
 };
-
-// --- Modal for Comments
 function CommentModal({ tx, onClose }) {
   if (!tx) return null;
   return (
@@ -247,7 +247,6 @@ const HomePage = () => {
     comment: ''
   });
 
-  // === Add/Edit handlers
   const handleAddParty = async () => {
     const f = partyInput;
     if (f.businessName && f.phoneNumber && f.bankNumber && f.contactName && f.contactMobile && f.bankName) {
@@ -352,7 +351,6 @@ const HomePage = () => {
     } else alert('Please enter a valid number');
   };
 
-  // Edit
   const handleEditClick = (tx) => {
     setEditingTransaction(tx);
     setEditForm({
@@ -379,7 +377,6 @@ const HomePage = () => {
   };
   const handleEditCancel = () => { setEditingTransaction(null); setEditForm({}); };
 
-  // Transaction Table (descending date!) + GST column
   const TransactionTable = ({ transactions, onEdit, onSeeComment }) => {
     const txs = transactions.slice().sort((a, b) => new Date(b.date) - new Date(a.date)); // DESCENDING
     // Running balance logic per party
@@ -472,7 +469,121 @@ const HomePage = () => {
     );
   };
 
-  // ====== UI rendering ======
+  const downloadCSV = (filename, rows) => {
+  const csvContent = rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
+
+// PDF export helper placeholder
+const exportPDF = () => {
+  const from = new Date(exportStartDate);
+  const to = new Date(exportEndDate);
+  to.setHours(23, 59, 59, 999);
+
+  const doc = new jsPDF();
+  doc.text("Velhal Bookkeeping Summary", 14, 15);
+
+  const txRows = allTransactions.filter(tx => {
+    const txDate = new Date(tx.date);
+    return txDate >= from && txDate <= to;
+  }).map(tx => [
+    tx.date,
+    tx.party,
+    tx.type,
+    asNumber(tx.amount),
+    tx.method || '',
+    tx.billNumber || '',
+    tx.checkNumber || ''
+  ]);
+
+  autoTable(doc, {
+  startY: 20,
+  head: [["Date", "Party", "Type", "Amount", "Method", "Bill No", "Check No"]],
+  body: txRows,
+  theme: 'striped',
+  headStyles: { fillColor: [41, 128, 185] }
+});
+
+
+  doc.save("velhal_summary.pdf");
+};
+// State for export date range
+const [exportStartDate, setExportStartDate] = useState('');
+const [exportEndDate, setExportEndDate] = useState('');
+
+// In the HomePage component:
+// Add this function
+const exportAllData = () => {
+  const from = new Date(exportStartDate);
+  const to = new Date(exportEndDate);
+  to.setHours(23, 59, 59, 999);
+
+  const allTxRows = [
+    ['Date', 'Party', 'Type', 'Amount', 'GST', 'Method', 'Bill No', 'Check No', 'Comment']
+  ];
+  allTransactions.forEach(tx => {
+    const txDate = new Date(tx.date);
+    if (txDate >= from && txDate <= to) {
+      allTxRows.push([
+        tx.date,
+        tx.party,
+        tx.type,
+        asNumber(tx.amount),
+        tx.gstAmount || '',
+        tx.method || '',
+        tx.billNumber || '',
+        tx.checkNumber || '',
+        tx.comment || ''
+      ]);
+    }
+  });
+
+  const partyRows = [
+    ['Business', 'Phone', 'Bank', 'Bank Name', 'Contact', 'Mobile']
+  ];
+  partiesInfo.forEach(p => {
+    partyRows.push([
+      p.businessName,
+      p.phoneNumber,
+      p.bankNumber,
+      p.bankName,
+      p.contactName,
+      p.contactMobile
+    ]);
+  });
+
+  const bankRows = [
+    ['Date', 'Party', 'Method', 'Check No.', 'Debit', 'Credit', 'Balance']
+  ];
+  getBankLedger().forEach(entry => {
+    const entryDate = new Date(entry.date);
+    if (entryDate >= from && entryDate <= to) {
+      bankRows.push([
+        entry.date,
+        entry.party,
+        entry.method,
+        entry.checkNumber || '-',
+        entry.debit || '',
+        entry.credit || '',
+        entry.balance || ''
+      ]);
+    }
+  });
+
+  downloadCSV('transactions_filtered.csv', allTxRows);
+  downloadCSV('parties.csv', partyRows);
+  downloadCSV('bank_ledger_filtered.csv', bankRows);
+};
+
+  
   return (
     <div className="home-page">
       <div className="sidebar">
@@ -532,6 +643,10 @@ const HomePage = () => {
                 }
               </span>
             </h4>
+            <label>From: <input type="date" value={exportStartDate} onChange={e => setExportStartDate(e.target.value)} /></label>
+            <label style={{ marginLeft: '12px' }}>To: <input type="date" value={exportEndDate} onChange={e => setExportEndDate(e.target.value)} /></label>
+            <button onClick={exportAllData} style={{ marginLeft: '12px' }}>Export All (CSV)</button>
+            <button onClick={exportPDF} style={{ marginLeft: '6px' }}>Export All (PDF)</button>
             <TransactionTable transactions={allTransactions} onEdit={handleEditClick} onSeeComment={setCommentTxModal}/>
           </>
         )}
