@@ -3,7 +3,7 @@ import './App.css';
 import { db } from "./firebase";
 import { collection, addDoc, updateDoc, doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
 import autoTable from 'jspdf-autotable';
-import 'jspdf-autotable';  // This line is causing the issue
+
 
 
 
