@@ -41,7 +41,7 @@ const PartyInfoTable = ({ parties = [] }) => {
               <th>Business</th>
               <th>Phone</th>
               <th>Bank</th>
-              <th>Bank Name</th>
+              <th>Bank name</th>
               <th>Contact</th>
               <th>Mobile</th>
             </tr>
