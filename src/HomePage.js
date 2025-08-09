@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 import { db } from "./firebase";
 import { collection, addDoc, updateDoc, doc, setDoc, onSnapshot } from "firebase/firestore";
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
+
 
 // Helper for numbers
 const asNumber = v => Number(typeof v === "string" ? v.replace(/,/g, "") : v) || 0;
