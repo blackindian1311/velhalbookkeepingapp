@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
 import { db } from './firebase';
-import {collection, addDoc, updateDoc, doc, setDoc, onSnapshot,
+import {
+  collection, addDoc, updateDoc, doc, setDoc, onSnapshot,
   deleteDoc, query, where, getDocs
 } from 'firebase/firestore';
 import { jsPDF } from 'jspdf';
@@ -247,7 +248,6 @@ const HomePage = () => {
         const amount = asNumber(tx.amount);
         await setDoc(doc(db, 'meta', 'bank'), { balance: asNumber(bankBalance) + amount });
 
-        // best-effort removal of paired bankDeposits deduction
         const bdRef = collection(db, 'bankDeposits');
         const snap = await getDocs(query(bdRef, where('isPaymentDeduction', '==', true)));
         const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -363,9 +363,11 @@ const HomePage = () => {
 
   const handleEditClick = (tx) => {
     setEditingTransaction(tx);
+    // For purchase transactions, use baseAmount (amount before GST) for editing
+    const editAmount = tx.type === 'purchase' && tx.baseAmount ? tx.baseAmount : asNumber(tx.amount);
     setEditForm({
       ...tx,
-      amount: asNumber(tx.amount),
+      amount: editAmount,
       billNumber: tx.billNumber || '',
       checkNumber: tx.checkNumber || '',
       method: tx.method || '',
@@ -378,11 +380,34 @@ const HomePage = () => {
   const handleEditSave = async () => {
     const tx = editingTransaction;
     if (!editForm.amount || !editForm.date) { alert('Fill all required fields.'); return; }
+    
     const coll = tx.type === 'purchase' ? 'purchases' : tx.type === 'payment' ? 'payments' : 'returns';
-    const newData = { ...tx, ...editForm, amount: asNumber(editForm.amount), billNumber: editForm.billNumber || null, comment: editForm.comment || '' };
+    let newData = { ...tx, ...editForm };
+    
+    // For purchase transactions, recalculate GST and total amount
+    if (tx.type === 'purchase') {
+      const baseAmt = asNumber(editForm.amount);
+      const gst = baseAmt * 0.05;
+      const totalWithGst = Math.round(baseAmt + gst);
+      
+      newData = {
+        ...newData,
+        baseAmount: baseAmt,
+        gstAmount: gst,
+        amount: totalWithGst
+      };
+    } else {
+      newData.amount = asNumber(editForm.amount);
+    }
+    
+    newData.billNumber = editForm.billNumber || null;
+    newData.comment = editForm.comment || '';
+    
     await updateDoc(doc(db, coll, tx.id), newData);
-    setEditingTransaction(null); setEditForm({});
+    setEditingTransaction(null); 
+    setEditForm({});
   };
+
   const handleEditCancel = () => { setEditingTransaction(null); setEditForm({}); };
 
   const TransactionTable = ({ transactions, onEdit, onSeeComment, onDelete }) => {
@@ -591,7 +616,15 @@ const HomePage = () => {
               </select>
             </label>
             <label>Type: {editingTransaction.type}</label>
-            <label>Amount: <input type='number' value={editForm.amount || ''} onChange={e => setEditForm(f => ({ ...f, amount: e.target.value }))} /></label>
+            <label>Amount{editingTransaction.type === 'purchase' ? ' (before GST)' : ''}: 
+              <input type='number' value={editForm.amount || ''} onChange={e => setEditForm(f => ({ ...f, amount: e.target.value }))} />
+            </label>
+            {editingTransaction.type === 'purchase' && editForm.amount && !isNaN(asNumber(editForm.amount)) && (
+              <div style={{ fontSize: '14px', color: '#666', marginTop: '5px' }}>
+                <div>GST (5%): ₹{(asNumber(editForm.amount) * 0.05).toFixed(2)}</div>
+                <div>Total after GST: ₹{Math.round(asNumber(editForm.amount) * 1.05)}</div>
+              </div>
+            )}
             <label>Bill No: <input type='text' value={editForm.billNumber || ''} onChange={e => setEditForm(f => ({ ...f, billNumber: e.target.value }))} /></label>
             <label>Method: <input type='text' value={editForm.method || ''} onChange={e => setEditForm(f => ({ ...f, method: e.target.value }))} /></label>
             {editForm.method === 'Check' && (
