@@ -107,6 +107,7 @@ function CommentModal({ tx, onClose }) {
           {tx.billNumber && <div><strong>Bill No:</strong> {tx.billNumber}</div>}
           {tx.method && <div><strong>Method:</strong> {tx.method}</div>}
           {tx.checkNumber && <div><strong>Check No:</strong> {tx.checkNumber}</div>}
+          <div><strong>GST Applied:</strong> {tx.hasGST !== false ? 'Yes' : 'No'}</div>
         </div>
         <div>
           <strong>Comment:</strong>
@@ -152,7 +153,8 @@ const HomePage = () => {
     returnDate: '',
     checkNumber: '',
     salaryPaymentName: '',
-    comment: ''
+    comment: '',
+    hasGST: true // Default to GST enabled
   });
   const [showPartyForm, setShowPartyForm] = useState(false);
 
@@ -259,7 +261,7 @@ const HomePage = () => {
   const clearFormFields = () => setForm({
     amount: '', billNumber: '', date: '', payment: '',
     paymentMethod: '', returnAmount: '', returnDate: '',
-    checkNumber: '', salaryPaymentName: '', comment: ''
+    checkNumber: '', salaryPaymentName: '', comment: '', hasGST: true
   });
 
   const handleDeleteTransaction = async (tx) => {
@@ -322,14 +324,29 @@ const HomePage = () => {
   };
 
   const handleAddPurchase = async () => {
-    const { amount, billNumber, date } = form;
+    const { amount, billNumber, date, hasGST } = form;
     if (!amount || !billNumber || !date || !selectedParty) { alert('Fill all purchase fields.'); return; }
     const baseAmt = asNumber(amount);
     if (baseAmt <= 0) { alert('Enter valid amount'); return; }
-    const gst = baseAmt * 0.05, totalWithGst = Math.round(baseAmt + gst);
+    
+    let finalAmount, gstAmount;
+    if (hasGST) {
+      gstAmount = baseAmt * 0.05;
+      finalAmount = Math.round(baseAmt + gstAmount);
+    } else {
+      gstAmount = 0;
+      finalAmount = baseAmt;
+    }
+    
     await addDoc(collection(db, 'purchases'), {
-      type: 'purchase', amount: totalWithGst, gstAmount: gst, baseAmount: baseAmt,
-      party: selectedParty, billNumber, date
+      type: 'purchase', 
+      amount: finalAmount, 
+      gstAmount: gstAmount, 
+      baseAmount: baseAmt,
+      hasGST: hasGST,
+      party: selectedParty, 
+      billNumber, 
+      date
     });
     clearFormFields();
   };
@@ -399,7 +416,8 @@ const HomePage = () => {
       method: tx.method || '',
       date: tx.date || '',
       party: tx.party || '',
-      comment: tx.comment || ''
+      comment: tx.comment || '',
+      hasGST: tx.hasGST !== false // Default to true if not specified
     });
   };
 
@@ -412,14 +430,22 @@ const HomePage = () => {
     
     if (tx.type === 'purchase') {
       const baseAmt = asNumber(editForm.amount);
-      const gst = baseAmt * 0.05;
-      const totalWithGst = Math.round(baseAmt + gst);
+      let gstAmount, finalAmount;
+      
+      if (editForm.hasGST) {
+        gstAmount = baseAmt * 0.05;
+        finalAmount = Math.round(baseAmt + gstAmount);
+      } else {
+        gstAmount = 0;
+        finalAmount = baseAmt;
+      }
       
       newData = {
         ...newData,
         baseAmount: baseAmt,
-        gstAmount: gst,
-        amount: totalWithGst
+        gstAmount: gstAmount,
+        amount: finalAmount,
+        hasGST: editForm.hasGST
       };
     } else {
       newData.amount = asNumber(editForm.amount);
@@ -479,9 +505,11 @@ const HomePage = () => {
               const debit = tx.type === 'purchase' ? asNumber(tx.amount) : null;
               const credit = (tx.type === 'payment' || tx.type === 'return') ? asNumber(tx.amount) : null;
               const gst = tx.type === 'purchase'
-                ? '₹' + (tx.gstAmount !== undefined
-                  ? Number(tx.gstAmount).toFixed(2)
-                  : ((asNumber(tx.amount) / 1.05) * 0.05).toFixed(2))
+                ? (tx.hasGST !== false 
+                   ? '₹' + (tx.gstAmount !== undefined
+                     ? Number(tx.gstAmount).toFixed(2)
+                     : ((asNumber(tx.amount) / 1.05) * 0.05).toFixed(2))
+                   : '₹0.00')
                 : '-';
               return (
                 <tr key={tx.id || i}>
@@ -546,13 +574,14 @@ const HomePage = () => {
       purchaseFilterStart,
       purchaseFilterEnd
     );
-    const headers = ['Date', 'Party', 'Amount', 'GST', 'Bill No', 'Comment'];
+    const headers = ['Date', 'Party', 'Amount', 'GST', 'Bill No', 'GST Applied', 'Comment'];
     const data = filtered.map(tx => [
       formatDate(tx.date),
       tx.party,
       `₹${asNumber(tx.amount).toFixed(2)}`,
       `₹${(tx.gstAmount || 0).toFixed(2)}`,
       tx.billNumber || '-',
+      tx.hasGST !== false ? 'Yes' : 'No',
       tx.comment || '-'
     ]);
     if (format === 'csv') {
@@ -731,7 +760,7 @@ const HomePage = () => {
     const to = new Date(exportEndDate);
     if (exportEndDate) to.setHours(23, 59, 59, 999);
 
-    const allTxRows = [['Date', 'Party', 'Type', 'Amount', 'GST', 'Method', 'Bill No', 'Check No', 'Comment']];
+    const allTxRows = [['Date', 'Party', 'Type', 'Amount', 'GST', 'Method', 'Bill No', 'Check No', 'Comment', 'GST Applied']];
     allTransactions.forEach(tx => {
       const d = new Date(tx.date);
       if (!exportStartDate || !exportEndDate || (d >= from && d <= to)) {
@@ -744,7 +773,8 @@ const HomePage = () => {
           tx.method || '',
           tx.billNumber || '',
           tx.checkNumber || '',
-          tx.comment || ''
+          tx.comment || '',
+          tx.type === 'purchase' ? (tx.hasGST !== false ? 'Yes' : 'No') : '-'
         ]);
       }
     });
@@ -815,14 +845,33 @@ const HomePage = () => {
               </select>
             </label>
             <label>Type: {editingTransaction.type}</label>
-            <label>Amount{editingTransaction.type === 'purchase' ? ' (before GST)' : ''}: 
+            <label>Amount{editingTransaction.type === 'purchase' ? ' (base amount)' : ''}: 
               <input type='number' value={editForm.amount || ''} onChange={e => setEditForm(f => ({ ...f, amount: e.target.value }))} />
             </label>
-            {editingTransaction.type === 'purchase' && editForm.amount && !isNaN(asNumber(editForm.amount)) && (
-              <div style={{ fontSize: '14px', color: '#666', marginTop: '5px' }}>
-                <div>GST (5%): ₹{(asNumber(editForm.amount) * 0.05).toFixed(2)}</div>
-                <div>Total after GST: ₹{Math.round(asNumber(editForm.amount) * 1.05)}</div>
-              </div>
+            {editingTransaction.type === 'purchase' && (
+              <>
+                <label style={{ display: 'flex', alignItems: 'center', marginTop: '10px' }}>
+                  <input 
+                    type='checkbox' 
+                    checked={editForm.hasGST} 
+                    onChange={e => setEditForm(f => ({ ...f, hasGST: e.target.checked }))} 
+                    style={{ marginRight: '8px' }}
+                  />
+                  Apply GST (5%)
+                </label>
+                {editForm.amount && !isNaN(asNumber(editForm.amount)) && (
+                  <div style={{ fontSize: '14px', color: '#666', marginTop: '5px' }}>
+                    {editForm.hasGST ? (
+                      <>
+                        <div>GST (5%): ₹{(asNumber(editForm.amount) * 0.05).toFixed(2)}</div>
+                        <div>Total with GST: ₹{Math.round(asNumber(editForm.amount) * 1.05)}</div>
+                      </>
+                    ) : (
+                      <div>Total (No GST): ₹{asNumber(editForm.amount).toFixed(2)}</div>
+                    )}
+                  </div>
+                )}
+              </>
             )}
             <label>Bill No: <input type='text' value={editForm.billNumber || ''} onChange={e => setEditForm(f => ({ ...f, billNumber: e.target.value }))} /></label>
             <label>Method: <input type='text' value={editForm.method || ''} onChange={e => setEditForm(f => ({ ...f, method: e.target.value }))} /></label>
@@ -849,7 +898,7 @@ const HomePage = () => {
               All Transactions <br />
               <span style={{ fontWeight: 'normal' }}>
                 Total GST on Purchases: ₹
-                {allTransactions.filter(tx => tx.type === 'purchase').reduce((s, tx) => s + (Number(tx.gstAmount) || 0), 0).toFixed(2)}
+                {allTransactions.filter(tx => tx.type === 'purchase' && tx.hasGST !== false).reduce((s, tx) => s + (Number(tx.gstAmount) || 0), 0).toFixed(2)}
               </span>
             </h4>
             
@@ -879,12 +928,29 @@ const HomePage = () => {
             <input type='date' value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} />
             <input type='text' placeholder='Bill No' value={form.billNumber} onChange={e => setForm({ ...form, billNumber: e.target.value })} />
             <input type='number' placeholder='Amount' value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} />
+            
+            <label style={{ display: 'flex', alignItems: 'center', marginTop: '10px', marginBottom: '10px' }}>
+              <input 
+                type='checkbox' 
+                checked={form.hasGST} 
+                onChange={e => setForm({ ...form, hasGST: e.target.checked })} 
+                style={{ marginRight: '8px' }}
+              />
+              Apply GST (5%)
+            </label>
+            
             <button className='addPurchase-button' onClick={handleAddPurchase}>Add Purchase</button>
             <button className='clearForm-button' onClick={clearFormFields} style={{ marginLeft: 12 }}>Clear</button>
             {form.amount && !isNaN(asNumber(form.amount)) && (
               <div style={{ marginTop: 10 }}>
-                <p>GST (5%): ₹{(asNumber(form.amount) * 0.05).toFixed(2)}</p>
-                <p>Total after GST: ₹{Math.round(asNumber(form.amount) * 1.05)}</p>
+                {form.hasGST ? (
+                  <>
+                    <p>GST (5%): ₹{(asNumber(form.amount) * 0.05).toFixed(2)}</p>
+                    <p>Total with GST: ₹{Math.round(asNumber(form.amount) * 1.05)}</p>
+                  </>
+                ) : (
+                  <p>Total (No GST): ₹{asNumber(form.amount).toFixed(2)}</p>
+                )}
               </div>
             )}
             
@@ -987,7 +1053,7 @@ const HomePage = () => {
             <p>Total Owed: ₹{(totalOwed || 0).toFixed(2)}</p>
             <p>
               Total GST on Purchases: ₹
-              {filteredTransactions.filter(tx => tx.type === 'purchase').reduce((s, tx) => s + (Number(tx.gstAmount) || 0), 0).toFixed(2)}
+              {filteredTransactions.filter(tx => tx.type === 'purchase' && tx.hasGST !== false).reduce((s, tx) => s + (Number(tx.gstAmount) || 0), 0).toFixed(2)}
             </p>
             
             <h3 style={{ marginTop: '30px' }}>Balance History</h3>
