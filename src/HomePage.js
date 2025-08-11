@@ -20,6 +20,18 @@ const formatDate = (dateString) => {
   return `${dd}/${mm}/${yyyy}`;
 };
 
+// Filter transactions by date range
+const filterTransactionsByDate = (transactions, startDate, endDate) => {
+  if (!startDate || !endDate) return transactions;
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  end.setHours(23, 59, 59, 999);
+  return transactions.filter(tx => {
+    const txDate = new Date(tx.date);
+    return txDate >= start && txDate <= end;
+  });
+};
+
 const PartyInfoTable = ({ parties = [] }) => {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -144,6 +156,21 @@ const HomePage = () => {
   });
   const [showPartyForm, setShowPartyForm] = useState(false);
 
+  // Date filters for each view
+  const [homeFilterStart, setHomeFilterStart] = useState('');
+  const [homeFilterEnd, setHomeFilterEnd] = useState('');
+  const [purchaseFilterStart, setPurchaseFilterStart] = useState('');
+  const [purchaseFilterEnd, setPurchaseFilterEnd] = useState('');
+  const [paymentFilterStart, setPaymentFilterStart] = useState('');
+  const [paymentFilterEnd, setPaymentFilterEnd] = useState('');
+  const [returnFilterStart, setReturnFilterStart] = useState('');
+  const [returnFilterEnd, setReturnFilterEnd] = useState('');
+  const [balanceFilterStart, setBalanceFilterStart] = useState('');
+  const [balanceFilterEnd, setBalanceFilterEnd] = useState('');
+  const [bankFilterStart, setBankFilterStart] = useState('');
+  const [bankFilterEnd, setBankFilterEnd] = useState('');
+
+  // Export date range (for home page)
   const [exportStartDate, setExportStartDate] = useState('');
   const [exportEndDate, setExportEndDate] = useState('');
 
@@ -363,7 +390,6 @@ const HomePage = () => {
 
   const handleEditClick = (tx) => {
     setEditingTransaction(tx);
-    // For purchase transactions, use baseAmount (amount before GST) for editing
     const editAmount = tx.type === 'purchase' && tx.baseAmount ? tx.baseAmount : asNumber(tx.amount);
     setEditForm({
       ...tx,
@@ -384,7 +410,6 @@ const HomePage = () => {
     const coll = tx.type === 'purchase' ? 'purchases' : tx.type === 'payment' ? 'payments' : 'returns';
     let newData = { ...tx, ...editForm };
     
-    // For purchase transactions, recalculate GST and total amount
     if (tx.type === 'purchase') {
       const baseAmt = asNumber(editForm.amount);
       const gst = baseAmt * 0.05;
@@ -514,6 +539,160 @@ const HomePage = () => {
     URL.revokeObjectURL(url);
   };
 
+  // Export functions for each page
+  const exportPurchaseHistory = (format) => {
+    const filtered = filterTransactionsByDate(
+      purchaseTransactions.filter(tx => !selectedParty || tx.party === selectedParty),
+      purchaseFilterStart,
+      purchaseFilterEnd
+    );
+    const headers = ['Date', 'Party', 'Amount', 'GST', 'Bill No', 'Comment'];
+    const data = filtered.map(tx => [
+      formatDate(tx.date),
+      tx.party,
+      `₹${asNumber(tx.amount).toFixed(2)}`,
+      `₹${(tx.gstAmount || 0).toFixed(2)}`,
+      tx.billNumber || '-',
+      tx.comment || '-'
+    ]);
+    if (format === 'csv') {
+      downloadCSV('purchase_history.csv', [headers, ...data]);
+    } else {
+      const doc = new jsPDF();
+      doc.text('Purchase History Report', 14, 15);
+      autoTable(doc, {
+        startY: 25,
+        head: [headers],
+        body: data,
+        theme: 'striped',
+        headStyles: { fillColor: [41, 128, 185] }
+      });
+      doc.save('purchase_history.pdf');
+    }
+  };
+
+  const exportPaymentHistory = (format) => {
+    const filtered = filterTransactionsByDate(
+      paymentTransactions.filter(tx => !selectedParty || tx.party === selectedParty),
+      paymentFilterStart,
+      paymentFilterEnd
+    );
+    const headers = ['Date', 'Party', 'Amount', 'Method', 'Check No', 'Comment'];
+    const data = filtered.map(tx => [
+      formatDate(tx.date),
+      tx.party,
+      `₹${asNumber(tx.amount).toFixed(2)}`,
+      tx.method || '-',
+      tx.checkNumber || '-',
+      tx.comment || '-'
+    ]);
+    if (format === 'csv') {
+      downloadCSV('payment_history.csv', [headers, ...data]);
+    } else {
+      const doc = new jsPDF();
+      doc.text('Payment History Report', 14, 15);
+      autoTable(doc, {
+        startY: 25,
+        head: [headers],
+        body: data,
+        theme: 'striped',
+        headStyles: { fillColor: [41, 128, 185] }
+      });
+      doc.save('payment_history.pdf');
+    }
+  };
+
+  const exportReturnHistory = (format) => {
+    const filtered = filterTransactionsByDate(
+      returnTransactions.filter(tx => !selectedParty || tx.party === selectedParty),
+      returnFilterStart,
+      returnFilterEnd
+    );
+    const headers = ['Date', 'Party', 'Amount', 'Bill No', 'Comment'];
+    const data = filtered.map(tx => [
+      formatDate(tx.date),
+      tx.party,
+      `₹${asNumber(tx.amount).toFixed(2)}`,
+      tx.billNumber || '-',
+      tx.comment || '-'
+    ]);
+    if (format === 'csv') {
+      downloadCSV('return_history.csv', [headers, ...data]);
+    } else {
+      const doc = new jsPDF();
+      doc.text('Return History Report', 14, 15);
+      autoTable(doc, {
+        startY: 25,
+        head: [headers],
+        body: data,
+        theme: 'striped',
+        headStyles: { fillColor: [41, 128, 185] }
+      });
+      doc.save('return_history.pdf');
+    }
+  };
+
+  const exportBalanceHistory = (format) => {
+    const filtered = filterTransactionsByDate(
+      filteredTransactions,
+      balanceFilterStart,
+      balanceFilterEnd
+    );
+    const headers = ['Date', 'Party', 'Type', 'Amount', 'GST', 'Method', 'Bill No', 'Comment'];
+    const data = filtered.map(tx => [
+      formatDate(tx.date),
+      tx.party,
+      tx.type,
+      `₹${asNumber(tx.amount).toFixed(2)}`,
+      tx.type === 'purchase' ? `₹${(tx.gstAmount || 0).toFixed(2)}` : '-',
+      tx.method || '-',
+      tx.billNumber || '-',
+      tx.comment || '-'
+    ]);
+    if (format === 'csv') {
+      downloadCSV('balance_history.csv', [headers, ...data]);
+    } else {
+      const doc = new jsPDF();
+      doc.text('Balance History Report', 14, 15);
+      autoTable(doc, {
+        startY: 25,
+        head: [headers],
+        body: data,
+        theme: 'striped',
+        headStyles: { fillColor: [41, 128, 185] }
+      });
+      doc.save('balance_history.pdf');
+    }
+  };
+
+  const exportBankHistory = (format) => {
+    const filtered = filterTransactionsByDate(getBankLedger(), bankFilterStart, bankFilterEnd);
+    const headers = ['Date', 'Party', 'Method', 'Check No', 'Debit', 'Credit', 'Balance'];
+    const data = filtered.map(entry => [
+      formatDate(entry.date),
+      entry.party,
+      entry.method,
+      entry.checkNumber || '-',
+      entry.debit ? `₹${entry.debit.toFixed(2)}` : '-',
+      entry.credit ? `₹${entry.credit.toFixed(2)}` : '-',
+      `₹${entry.balance.toFixed(2)}`
+    ]);
+    if (format === 'csv') {
+      downloadCSV('bank_history.csv', [headers, ...data]);
+    } else {
+      const doc = new jsPDF();
+      doc.text('Bank Transaction History', 14, 15);
+      autoTable(doc, {
+        startY: 25,
+        head: [headers],
+        body: data,
+        theme: 'striped',
+        headStyles: { fillColor: [41, 128, 185] }
+      });
+      doc.save('bank_history.pdf');
+    }
+  };
+
   const exportPDF = () => {
     const from = new Date(exportStartDate);
     const to = new Date(exportEndDate);
@@ -594,6 +773,26 @@ const HomePage = () => {
     downloadCSV('bank_ledger_filtered.csv', bankRows);
   };
 
+  // Filtered data for each view
+  const homeFilteredTransactions = filterTransactionsByDate(allTransactions, homeFilterStart, homeFilterEnd);
+  const purchaseFilteredTransactions = filterTransactionsByDate(
+    purchaseTransactions.filter(tx => !selectedParty || tx.party === selectedParty),
+    purchaseFilterStart,
+    purchaseFilterEnd
+  );
+  const paymentFilteredTransactions = filterTransactionsByDate(
+    paymentTransactions.filter(tx => !selectedParty || tx.party === selectedParty),
+    paymentFilterStart,
+    paymentFilterEnd
+  );
+  const returnFilteredTransactions = filterTransactionsByDate(
+    returnTransactions.filter(tx => !selectedParty || tx.party === selectedParty),
+    returnFilterStart,
+    returnFilterEnd
+  );
+  const balanceFilteredTransactions = filterTransactionsByDate(filteredTransactions, balanceFilterStart, balanceFilterEnd);
+  const bankFilteredLedger = filterTransactionsByDate(getBankLedger(), bankFilterStart, bankFilterEnd);
+
   return (
     <div className='home-page'>
       <div className='sidebar'>
@@ -653,13 +852,16 @@ const HomePage = () => {
                 {allTransactions.filter(tx => tx.type === 'purchase').reduce((s, tx) => s + (Number(tx.gstAmount) || 0), 0).toFixed(2)}
               </span>
             </h4>
-            <label>From: <input type='date' value={exportStartDate} onChange={e => setExportStartDate(e.target.value)} /></label>
-            <label style={{ marginLeft: 12 }}>To: <input type='date' value={exportEndDate} onChange={e => setExportEndDate(e.target.value)} /></label>
-            <button onClick={exportAllData} style={{ marginLeft: 12 }}>Export All (CSV)</button>
-            <button onClick={exportPDF} style={{ marginLeft: 6 }}>Export All (PDF)</button>
+            
+            <div style={{ marginBottom: '15px' }}>
+              <label>From: <input type='date' value={homeFilterStart} onChange={e => setHomeFilterStart(e.target.value)} /></label>
+              <label style={{ marginLeft: 12 }}>To: <input type='date' value={homeFilterEnd} onChange={e => setHomeFilterEnd(e.target.value)} /></label>
+              <button onClick={() => exportAllData()} style={{ marginLeft: 12 }}>Export All (CSV)</button>
+              <button onClick={exportPDF} style={{ marginLeft: 6 }}>Export All (PDF)</button>
+            </div>
 
             <TransactionTable
-              transactions={allTransactions}
+              transactions={homeFilteredTransactions}
               onEdit={handleEditClick}
               onSeeComment={setCommentTxModal}
               onDelete={handleDeleteTransaction}
@@ -685,6 +887,21 @@ const HomePage = () => {
                 <p>Total after GST: ₹{Math.round(asNumber(form.amount) * 1.05)}</p>
               </div>
             )}
+            
+            <h3 style={{ marginTop: '30px' }}>Purchase History</h3>
+            <div style={{ marginBottom: '15px' }}>
+              <label>From: <input type='date' value={purchaseFilterStart} onChange={e => setPurchaseFilterStart(e.target.value)} /></label>
+              <label style={{ marginLeft: 12 }}>To: <input type='date' value={purchaseFilterEnd} onChange={e => setPurchaseFilterEnd(e.target.value)} /></label>
+              <button onClick={() => exportPurchaseHistory('csv')} style={{ marginLeft: 12 }}>Export CSV</button>
+              <button onClick={() => exportPurchaseHistory('pdf')} style={{ marginLeft: 6 }}>Export PDF</button>
+            </div>
+            <TransactionTable
+              transactions={purchaseFilteredTransactions}
+              onEdit={handleEditClick}
+              onSeeComment={setCommentTxModal}
+              onDelete={handleDeleteTransaction}
+            />
+            
             {selectedParty && <SectionHistory type='purchase' party={selectedParty} />}
           </div>
         )}
@@ -709,6 +926,21 @@ const HomePage = () => {
             )}
             <button className='addPurchase-button' onClick={handleAddPayment}>Add Payment</button>
             <button className='clearForm-button' onClick={clearFormFields} style={{ marginLeft: 12 }}>Clear</button>
+            
+            <h3 style={{ marginTop: '30px' }}>Payment History</h3>
+            <div style={{ marginBottom: '15px' }}>
+              <label>From: <input type='date' value={paymentFilterStart} onChange={e => setPaymentFilterStart(e.target.value)} /></label>
+              <label style={{ marginLeft: 12 }}>To: <input type='date' value={paymentFilterEnd} onChange={e => setPaymentFilterEnd(e.target.value)} /></label>
+              <button onClick={() => exportPaymentHistory('csv')} style={{ marginLeft: 12 }}>Export CSV</button>
+              <button onClick={() => exportPaymentHistory('pdf')} style={{ marginLeft: 6 }}>Export PDF</button>
+            </div>
+            <TransactionTable
+              transactions={paymentFilteredTransactions}
+              onEdit={handleEditClick}
+              onSeeComment={setCommentTxModal}
+              onDelete={handleDeleteTransaction}
+            />
+            
             {selectedParty && <SectionHistory type='payment' party={selectedParty} />}
           </div>
         )}
@@ -726,6 +958,21 @@ const HomePage = () => {
             <textarea placeholder='Why was the product returned?' value={form.comment} onChange={e => setForm({ ...form, comment: e.target.value })} style={{ width: '100%', minHeight: 36, marginTop: 8 }} />
             <button className='addPurchase-button' onClick={handleAddReturn}>Add Return</button>
             <button className='clearForm-button' onClick={clearFormFields} style={{ marginLeft: 12 }}>Clear</button>
+            
+            <h3 style={{ marginTop: '30px' }}>Return History</h3>
+            <div style={{ marginBottom: '15px' }}>
+              <label>From: <input type='date' value={returnFilterStart} onChange={e => setReturnFilterStart(e.target.value)} /></label>
+              <label style={{ marginLeft: 12 }}>To: <input type='date' value={returnFilterEnd} onChange={e => setReturnFilterEnd(e.target.value)} /></label>
+              <button onClick={() => exportReturnHistory('csv')} style={{ marginLeft: 12 }}>Export CSV</button>
+              <button onClick={() => exportReturnHistory('pdf')} style={{ marginLeft: 6 }}>Export PDF</button>
+            </div>
+            <TransactionTable
+              transactions={returnFilteredTransactions}
+              onEdit={handleEditClick}
+              onSeeComment={setCommentTxModal}
+              onDelete={handleDeleteTransaction}
+            />
+            
             {selectedParty && <SectionHistory type='return' party={selectedParty} />}
           </div>
         )}
@@ -742,8 +989,16 @@ const HomePage = () => {
               Total GST on Purchases: ₹
               {filteredTransactions.filter(tx => tx.type === 'purchase').reduce((s, tx) => s + (Number(tx.gstAmount) || 0), 0).toFixed(2)}
             </p>
+            
+            <h3 style={{ marginTop: '30px' }}>Balance History</h3>
+            <div style={{ marginBottom: '15px' }}>
+              <label>From: <input type='date' value={balanceFilterStart} onChange={e => setBalanceFilterStart(e.target.value)} /></label>
+              <label style={{ marginLeft: 12 }}>To: <input type='date' value={balanceFilterEnd} onChange={e => setBalanceFilterEnd(e.target.value)} /></label>
+              <button onClick={() => exportBalanceHistory('csv')} style={{ marginLeft: 12 }}>Export CSV</button>
+              <button onClick={() => exportBalanceHistory('pdf')} style={{ marginLeft: 6 }}>Export PDF</button>
+            </div>
             <TransactionTable
-              transactions={filteredTransactions}
+              transactions={balanceFilteredTransactions}
               onEdit={handleEditClick}
               onSeeComment={setCommentTxModal}
               onDelete={handleDeleteTransaction}
@@ -779,7 +1034,13 @@ const HomePage = () => {
             <input type='date' value={depositDate} onChange={e => setDepositDate(e.target.value)} placeholder='Enter deposit date' />
             <button onClick={handleDeposit} className='addPurchase-button'>Deposit</button>
 
-            <h2 style={{ marginTop: 20 }}>Bank Transaction History</h2>
+            <h2 style={{ marginTop: '20px' }}>Bank Transaction History</h2>
+            <div style={{ marginBottom: '15px' }}>
+              <label>From: <input type='date' value={bankFilterStart} onChange={e => setBankFilterStart(e.target.value)} /></label>
+              <label style={{ marginLeft: 12 }}>To: <input type='date' value={bankFilterEnd} onChange={e => setBankFilterEnd(e.target.value)} /></label>
+              <button onClick={() => exportBankHistory('csv')} style={{ marginLeft: 12 }}>Export CSV</button>
+              <button onClick={() => exportBankHistory('pdf')} style={{ marginLeft: 6 }}>Export PDF</button>
+            </div>
             <table className='transaction-table'>
               <thead>
                 <tr>
@@ -794,7 +1055,7 @@ const HomePage = () => {
                 </tr>
               </thead>
               <tbody>
-                {getBankLedger().map((e, idx) => (
+                {bankFilteredLedger.map((e, idx) => (
                   <tr key={idx}>
                     <td>{formatDate(e.date)}</td>
                     <td>{e.party}</td>
