@@ -1,13 +1,12 @@
 /* App.css */
 
 body { 
-font-family: Arial, sans-serif;  
-margin: 0;  
-padding: 0;  
-font-family: 'Bodoni Moda', serif;  
-background-color: rgb(238, 170, 130);
-text-decoration: white;
-
+  font-family: Arial, sans-serif;  
+  margin: 0;  
+  padding: 0;  
+  font-family: 'Bodoni Moda', serif;  
+  background-color: #1b0685;
+  color: #f5f2ba;
 }
 
 .home-page {
@@ -16,9 +15,8 @@ text-decoration: white;
   margin-left: 160px; /* Width of your sidebar */
   padding: 0 10px;
   box-sizing: border-box;
+  background-color: #1b0685;
 }
-
-
 
 .sidebar {
   position: fixed;
@@ -26,12 +24,13 @@ text-decoration: white;
   left: 0; /* ✅ no more sliding */
   width: 160px;
   height: 100vh;
-  background-color: rgb(238, 170, 130);
-  color: white;
+  background-color: #1b0685;
+  color: #f5f2ba;
   padding: 20px;
   overflow-y: auto;
   z-index: 1000;
   transition: none; /* ✅ disables animation */
+  border-right: 1px solid #f5f2ba;
 }
 
 .sidebar {
@@ -47,15 +46,13 @@ text-decoration: white;
   scrollbar-width: none; /* Hide scrollbar for Firefox */
 }
 
-
-
 .sidebar button {
   display: block;
   width: 100%;
   padding: 35px 10px;
-  background-color: #1e2a38;
-  color: white;
-  border: none;
+  background-color: #1b0685;
+  color: #f5f2ba;
+  border: 1px solid #f5f2ba;
   cursor: pointer;
   text-align: center;
   font-size: 18px;
@@ -65,55 +62,55 @@ text-decoration: white;
 }
 
 .sidebar button:hover {
-  background-color: #2e3d52;
+  background-color: rgba(245, 242, 186, 0.1);
   transform: scale(1.05);
 }
 
-
-
 .sidebar button.active {
-  background-color: #555;
+  background-color: rgba(245, 242, 186, 0.2);
+  color: #f5f2ba;
 }
 
 .content {  
   flex-grow: 1;  
   padding: 20px;  
-  ;
+  background-color: #1b0685;
+  color: #f5f2ba;
 }
 
-
-
 h2 {  
-margin-top: 0; 
- text-decoration-color: #1e2a38 ;
+  margin-top: 0; 
+  color: #f5f2ba;
 }
 
 .total-overview{  
-  background-color:#2e3d52;    
+  background-color: #1b0685;    
   padding: 20px;  
   margin-bottom: 20px;  
   border-radius: 10px;  
-  box-shadow: 0px 0px 5px (0, 0, 0, 0.1);  
+  border: 1px solid #f5f2ba;
+  box-shadow: 0px 0px 5px rgba(245, 242, 186, 0.3);  
   display: flex;  
   flex-direction: column;  
   justify-content: center;  
   align-items: center;  
   min-height: 10vh;  
   font-size: 1.4rem;  
- ;
+  color: #f5f2ba;
 }
 
 .total-price-text{
   font-size: 3rem;
   font-weight: bold;
   margin: 20px 0;
-  color: #2e3d52;
+  color: #f5f2ba;
 }
+
 .balance-section,
 .pay-section,
-.history-section
- {
-  background-color: #2e3d52;
+.history-section {
+  background-color: #1b0685;
+  border: 1px solid #f5f2ba;
   padding: 20px;
   margin-bottom: 20px;
   border-radius: 10px;
@@ -123,7 +120,7 @@ margin-top: 0;
   align-items: center;
   min-height: 10vh;
   font-size: 1.6rem;
-  color: #ffffff;
+  color: #f5f2ba;
 }
 
 input,
@@ -134,15 +131,21 @@ select {
   width: 50%; /* Adjust width as needed */
   border-radius: 10px;
   font-size: 1.2rem;
-    color: #1e3a5f;
-  }
-
+  color: #f5f2ba;
+  background-color: #1b0685;
+  border: 1px solid #f5f2ba;
+}
 
 .newParty-button {
   padding: 20px 90px;
   font-size: 24px;
   margin-top: 1px;
   gap: 1px;
+  background-color: #1b0685;
+  color: #f5f2ba;
+  border: 1px solid #f5f2ba;
+  cursor: pointer;
+  border-radius: 0;
 }
 
 .addPurchase-button {
@@ -155,40 +158,42 @@ select {
   margin-left: auto;
   margin-right: auto;
   border-radius: 0; /* Make square */
-  background-color: #1e2a38;
-  color: white;
-  border: none;
+  background-color: #1b0685;
+  color: #f5f2ba;
+  border: 1px solid #f5f2ba;
   cursor: pointer;
   transition: transform 0.2s ease;
 }
 
 .addPurchase-button:hover {
   transform: scale(1.05);
-  background-color: #2e3d52;
+  background-color: rgba(245, 242, 186, 0.1);
 }
-
-
 
 button.medium-button {
   padding: 10px 15px;
   font-size: 16px;
   margin-top: 10px;
-
+  background-color: #1b0685;
+  color: #f5f2ba;
+  border: 1px solid #f5f2ba;
+  cursor: pointer;
 }
 
 button.large-button {
   padding: 12px 20px;
   font-size: 18px;
   margin-top: 15px;
-  color: #2e3d52;
-  border: none;
+  color: #f5f2ba;
+  background-color: #1b0685;
+  border: 1px solid #f5f2ba;
   border-radius: 6px;
   cursor: pointer;
 }
 
 button.large-button:hover { 
-  background-color: #2e3d52;
-  color: #2e3d52;
+  background-color: rgba(245, 242, 186, 0.1);
+  color: #f5f2ba;
 }
 
 .history-section ul {
@@ -200,7 +205,9 @@ button.large-button:hover {
   margin-bottom: 10px;
   padding: 15px;
   border-radius: 6px;
-  box-shadow: 0px 0px 5px #2e3d52(0, 0, 0, 0.05);
+  background-color: #1b0685;
+  border: 1px solid #f5f2ba;
+  box-shadow: 0px 0px 5px rgba(245, 242, 186, 0.2);
 }
 
 .main-content {
@@ -209,20 +216,20 @@ button.large-button:hover {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
+  background-color: #1b0685;
+  color: #f5f2ba;
 }
-
 
 .transaction-table-wrapper, .partyInfoTable-wrapper {
   overflow-x: auto;
   margin-top: 20px;
 }
 
-
 .transaction-table, .partyInfoTable {
   width: 100%;
   border-collapse: collapse;
-  background-color: #1e2a38;
-  color: #fff;
+  background-color: #1b0685;
+  color: #f5f2ba;
   font-size: 1rem;
 }
 
@@ -231,26 +238,27 @@ button.large-button:hover {
 .partyInfoTable th,
 .partyInfoTable td {
   padding: 12px 15px;
-  border: 1px solid #3a4a5a;
+  border: 1px solid #f5f2ba;
   text-align: center;
+  background-color: #1b0685;
+  color: #f5f2ba;
 }
 
 .transaction-table th {
-  background-color: #273444;
+  background-color: rgba(245, 242, 186, 0.1);
   font-weight: bold;
+  color: #f5f2ba;
 }
 
 .transaction-table tr:nth-child(even),
 .partyInfoTable tr:nth-child(even) {
-  background-color: #2e3d52;
+  background-color: rgba(245, 242, 186, 0.05);
 }
-
-
-
 
 .partyDetails {
-   color: white;
+  color: #f5f2ba;
 }
+
 input,
 select,
 textarea {
@@ -259,82 +267,86 @@ textarea {
   padding: 10px;             /* Uniform padding */
   font-size: 1.1rem;
   border-radius: 0;          /* Square corners */
-  border: 1px solid #1e3a5f;
+  border: 1px solid #f5f2ba;
   margin: 10px auto;
   display: block;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  color: #1e3a5f;
-  background-color: #ffffff;
+  box-shadow: 0 2px 4px rgba(245, 242, 186, 0.2);
+  color: #f5f2ba;
+  background-color: #1b0685;
 }
 
-
-.sidebar button.active {
-  background-color: #1e3a5f;
-  color: white;
-
+input::placeholder,
+select::placeholder,
+textarea::placeholder {
+  color: rgba(245, 242, 186, 0.7);
 }
+
 h1 {
-  color: #1e2a38 ;
+  color: #f5f2ba;
   text-align: center;  
   font-size: 75px;  
   margin-bottom: 40px;
 }
 
 h2{
-  color: #ffffff;
+  color: #f5f2ba;
   text-align: center;  
   font-size: 60px;  
   margin-bottom: 40px;
 }
 
 .form-container {
-  background-color: #1e2a38;
+  background-color: #1b0685;
+  border: 1px solid #f5f2ba;
   padding: 40px;
   border-radius: 1px;
   width: 100%;
   max-width: 1000px;
   margin: 0px auto;
   margin-top: 90px;
-  color: #ffffff;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  color: #f5f2ba;
+  box-shadow: 0 4px 10px rgba(245, 242, 186, 0.2);
 }
 
-
 .return-section {
-  color: #1e3a5f;
-  text-decoration: #ffffff;
+  color: #f5f2ba;
+  background-color: #1b0685;
 }
 
 h3{
-  color: #1e2a38 ;
+  color: #f5f2ba;
   text-align: center;  
   font-size: 60px;  
   margin-bottom: 40px;
 }
+
 h4 {
-  color: #1e2a38 ;
+  color: #f5f2ba;
   text-align: center;  
   font-size: 50px;  
   margin-bottom: 40px;
   text-decoration: underline;
+  text-decoration-color: #f5f2ba;
 }
   
 h5 {
-  color:#1e2a38 ;
+  color: #f5f2ba;
   text-align: center;  
   font-size: 30px;  
   margin-bottom: 40px;
 }
+
 h6 {
-  color: #ffffff;
+  color: #f5f2ba;
   text-align: center;  
   font-size: 30px;  
   margin-bottom: 40px;
 }
+
 .nrv-logo {
   font-size: 10vw;                /* Responsive size that works across devices */
   font-weight: bold;
-  color: #1e2a38;
+  color: rgba(245, 242, 186, 0.1);
   white-space: nowrap;
   text-align: center;
 
@@ -353,11 +365,13 @@ h6 {
   max-width: 100%;
   overflow: visible;
 }
+
 .background-watermark-container {
   position: relative;
   width: 100vw;
   height: 100vh;
   overflow: hidden;
+  background-color: #1b0685;
 }
 
 @media screen and (max-width: 480px) {
@@ -371,6 +385,7 @@ h6 {
     font-size: 60px;
   }
 }
+
 @media screen and (max-width: 768px) {
   .nrv-logo {
     font-size: 6vw;
@@ -399,30 +414,75 @@ h6 {
   display: block;
   margin-left: auto;
   margin-right: auto;
-  position: center;
+  background-color: #1b0685;
+  color: #f5f2ba;
+  border: 1px solid #f5f2ba;
+}
 
-  
-}
 h7 {
-  text-decoration:underline;
-  text-decoration-color:#1e2a38;
+  text-decoration: underline;
+  text-decoration-color: #f5f2ba;
+  color: #f5f2ba;
 }
-h1{
-  text-decoration: #1e2a38;
-}
+
 * {
   box-sizing: border-box;
 }
+
+/* Modal Styles */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(27, 6, 133, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal > div {
+  background-color: #1b0685;
+  color: #f5f2ba;
+  border: 1px solid #f5f2ba;
+  border-radius: 6px;
+  padding: 20px;
+}
+
+/* Button Styles */
+button {
+  background-color: #1b0685;
+  color: #f5f2ba;
+  border: 1px solid #f5f2ba;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+button:hover {
+  background-color: rgba(245, 242, 186, 0.1);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 @media screen and (max-width: 768px) {
   .home-page {
     margin-left: 0;
     padding: 0 15px;
+    background-color: #1b0685;
   }
 
   .sidebar {
     position: relative;
     width: 100%;
     height: auto;
+    background-color: #1b0685;
   }
 
   .sidebar button {
@@ -454,6 +514,7 @@ h1{
     width: 90%;
   }
 }
+
 body::before {
   content: "NRV";
   position: fixed;
@@ -461,14 +522,17 @@ body::before {
   left: 50%;
   transform: translate(-50%, -50%) rotate(-30deg);
   font-size: 280px; /* 🔸 Increase size */
-  color: rgba(0, 0, 0, 0.08); /* 🔸 Make it darker */
+  color: rgba(245, 242, 186, 0.08); /* 🔸 Updated watermark color */
   font-weight: 900;
   z-index: -1;
   white-space: nowrap;
   pointer-events: none;
   user-select: none;
 }
+
 .main-content {
   position: relative;
   z-index: 1;
+  background-color: #1b0685;
+  color: #f5f2ba;
 }
