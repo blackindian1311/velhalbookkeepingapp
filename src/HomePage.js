@@ -154,7 +154,7 @@ const HomePage = () => {
     checkNumber: '',
     salaryPaymentName: '',
     comment: '',
-    hasGST: true // Default to GST enabled
+    hasGST: true
   });
   const [showPartyForm, setShowPartyForm] = useState(false);
 
@@ -417,7 +417,7 @@ const HomePage = () => {
       date: tx.date || '',
       party: tx.party || '',
       comment: tx.comment || '',
-      hasGST: tx.hasGST !== false // Default to true if not specified
+      hasGST: tx.hasGST !== false
     });
   };
 
@@ -480,24 +480,29 @@ const HomePage = () => {
     });
 
     return (
-      <div className='transaction-table-wrapper'>
-        <table className='transaction-table'>
+      <div style={{ overflowX: 'auto', width: '100%' }}>
+        <table className='transaction-table' style={{ 
+          width: '100%', 
+          minWidth: '1200px',
+          fontSize: '13px',
+          borderCollapse: 'collapse'
+        }}>
           <thead>
             <tr>
-              <th>Date</th>
-              <th>Party</th>
-              <th>Type</th>
-              <th>Bill No</th>
-              <th>Method</th>
-              <th>Check No</th>
-              <th>Amount</th>
-              <th>GST</th>
-              <th>Debit</th>
-              <th>Credit</th>
-              <th>Balance</th>
-              <th>Edit</th>
-              <th>See Comment</th>
-              <th>Delete</th>
+              <th style={{ minWidth: '85px', padding: '8px 4px' }}>Date</th>
+              <th style={{ minWidth: '120px', padding: '8px 4px' }}>Party</th>
+              <th style={{ minWidth: '70px', padding: '8px 4px' }}>Type</th>
+              <th style={{ minWidth: '70px', padding: '8px 4px' }}>Bill No</th>
+              <th style={{ minWidth: '70px', padding: '8px 4px' }}>Method</th>
+              <th style={{ minWidth: '70px', padding: '8px 4px' }}>Check No</th>
+              <th style={{ minWidth: '85px', padding: '8px 4px' }}>Amount</th>
+              <th style={{ minWidth: '70px', padding: '8px 4px' }}>GST</th>
+              <th style={{ minWidth: '80px', padding: '8px 4px' }}>Debit</th>
+              <th style={{ minWidth: '80px', padding: '8px 4px' }}>Credit</th>
+              <th style={{ minWidth: '85px', padding: '8px 4px' }}>Balance</th>
+              <th style={{ minWidth: '50px', padding: '8px 4px' }}>Edit</th>
+              <th style={{ minWidth: '80px', padding: '8px 4px' }}>Comment</th>
+              <th style={{ minWidth: '60px', padding: '8px 4px' }}>Delete</th>
             </tr>
           </thead>
           <tbody>
@@ -513,20 +518,44 @@ const HomePage = () => {
                 : '-';
               return (
                 <tr key={tx.id || i}>
-                  <td>{formatDate(tx.date)}</td>
-                  <td>{tx.party}</td>
-                  <td>{tx.type}</td>
-                  <td>{tx.billNumber || '-'}</td>
-                  <td>{tx.method || '-'}</td>
-                  <td>{tx.method === 'Check' && tx.checkNumber ? tx.checkNumber : '-'}</td>
-                  <td>₹{asNumber(tx.amount).toFixed(2)}</td>
-                  <td>{gst}</td>
-                  <td>{debit !== null ? `₹${asNumber(debit).toFixed(2)}` : '-'}</td>
-                  <td>{credit !== null ? `₹${asNumber(credit).toFixed(2)}` : '-'}</td>
-                  <td>₹{runningBalances[tx.id] !== undefined ? asNumber(runningBalances[tx.id]).toFixed(2) : '-'}</td>
-                  <td><button onClick={() => onEdit && onEdit(tx)}>Edit</button></td>
-                  <td>{tx.comment ? <button onClick={() => onSeeComment && onSeeComment(tx)}>See Comment</button> : ''}</td>
-                  <td><button onClick={() => onDelete && onDelete(tx)} style={{ color: 'white', background: '#d9534f' }}>Delete</button></td>
+                  <td style={{ padding: '6px 4px', fontSize: '12px' }}>{formatDate(tx.date)}</td>
+                  <td style={{ padding: '6px 4px', fontSize: '12px', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tx.party}</td>
+                  <td style={{ padding: '6px 4px', fontSize: '12px' }}>{tx.type}</td>
+                  <td style={{ padding: '6px 4px', fontSize: '12px' }}>{tx.billNumber || '-'}</td>
+                  <td style={{ padding: '6px 4px', fontSize: '12px' }}>{tx.method || '-'}</td>
+                  <td style={{ padding: '6px 4px', fontSize: '12px' }}>{tx.method === 'Check' && tx.checkNumber ? tx.checkNumber : '-'}</td>
+                  <td style={{ padding: '6px 4px', fontSize: '12px' }}>₹{asNumber(tx.amount).toFixed(2)}</td>
+                  <td style={{ padding: '6px 4px', fontSize: '12px' }}>{gst}</td>
+                  <td style={{ padding: '6px 4px', fontSize: '12px' }}>{debit !== null ? `₹${asNumber(debit).toFixed(2)}` : '-'}</td>
+                  <td style={{ padding: '6px 4px', fontSize: '12px' }}>{credit !== null ? `₹${asNumber(credit).toFixed(2)}` : '-'}</td>
+                  <td style={{ padding: '6px 4px', fontSize: '12px' }}>₹{runningBalances[tx.id] !== undefined ? asNumber(runningBalances[tx.id]).toFixed(2) : '-'}</td>
+                  <td style={{ padding: '6px 4px' }}>
+                    <button 
+                      onClick={() => onEdit && onEdit(tx)}
+                      style={{ padding: '4px 6px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '3px', background: '#f8f9fa' }}
+                    >
+                      Edit
+                    </button>
+                  </td>
+                  <td style={{ padding: '6px 4px' }}>
+                    {tx.comment ? 
+                      <button 
+                        onClick={() => onSeeComment && onSeeComment(tx)}
+                        style={{ padding: '4px 6px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '3px', background: '#e7f3ff' }}
+                      >
+                        Comment
+                      </button> 
+                      : ''
+                    }
+                  </td>
+                  <td style={{ padding: '6px 4px' }}>
+                    <button 
+                      onClick={() => onDelete && onDelete(tx)} 
+                      style={{ padding: '4px 6px', fontSize: '11px', color: 'white', background: '#dc3545', border: 'none', borderRadius: '3px' }}
+                    >
+                      Del
+                    </button>
+                  </td>
                 </tr>
               );
             })}
@@ -1107,38 +1136,40 @@ const HomePage = () => {
               <button onClick={() => exportBankHistory('csv')} style={{ marginLeft: 12 }}>Export CSV</button>
               <button onClick={() => exportBankHistory('pdf')} style={{ marginLeft: 6 }}>Export PDF</button>
             </div>
-            <table className='transaction-table'>
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Party</th>
-                  <th>Method</th>
-                  <th>Check No.</th>
-                  <th>Debit</th>
-                  <th>Credit</th>
-                  <th>Balance</th>
-                  <th>Delete</th>
-                </tr>
-              </thead>
-              <tbody>
-                {bankFilteredLedger.map((e, idx) => (
-                  <tr key={idx}>
-                    <td>{formatDate(e.date)}</td>
-                    <td>{e.party}</td>
-                    <td>{e.method}</td>
-                    <td>{e.checkNumber || '-'}</td>
-                    <td style={{ color: e.debit ? 'red' : 'black' }}>{e.debit ? `₹${e.debit.toFixed(2)}` : '-'}</td>
-                    <td style={{ color: e.credit ? 'green' : 'black' }}>{e.credit ? `₹${e.credit.toFixed(2)}` : '-'}</td>
-                    <td>₹{e.balance.toFixed(2)}</td>
-                    <td>
-                      {e.type === 'deposit' && e.source === 'bankDeposits' && e.isPaymentDeduction !== true
-                        ? <button onClick={() => handleDeleteBankEntry(e)} style={{ color: 'white', background: '#d9534f' }}>Delete</button>
-                        : ''}
-                    </td>
+            <div style={{ overflowX: 'auto' }}>
+              <table className='transaction-table' style={{ fontSize: '13px' }}>
+                <thead>
+                  <tr>
+                    <th style={{ padding: '8px 6px' }}>Date</th>
+                    <th style={{ padding: '8px 6px' }}>Party</th>
+                    <th style={{ padding: '8px 6px' }}>Method</th>
+                    <th style={{ padding: '8px 6px' }}>Check No.</th>
+                    <th style={{ padding: '8px 6px' }}>Debit</th>
+                    <th style={{ padding: '8px 6px' }}>Credit</th>
+                    <th style={{ padding: '8px 6px' }}>Balance</th>
+                    <th style={{ padding: '8px 6px' }}>Delete</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {bankFilteredLedger.map((e, idx) => (
+                    <tr key={idx}>
+                      <td style={{ padding: '6px', fontSize: '12px' }}>{formatDate(e.date)}</td>
+                      <td style={{ padding: '6px', fontSize: '12px' }}>{e.party}</td>
+                      <td style={{ padding: '6px', fontSize: '12px' }}>{e.method}</td>
+                      <td style={{ padding: '6px', fontSize: '12px' }}>{e.checkNumber || '-'}</td>
+                      <td style={{ padding: '6px', fontSize: '12px', color: e.debit ? 'red' : 'black' }}>{e.debit ? `₹${e.debit.toFixed(2)}` : '-'}</td>
+                      <td style={{ padding: '6px', fontSize: '12px', color: e.credit ? 'green' : 'black' }}>{e.credit ? `₹${e.credit.toFixed(2)}` : '-'}</td>
+                      <td style={{ padding: '6px', fontSize: '12px' }}>₹{e.balance.toFixed(2)}</td>
+                      <td style={{ padding: '6px' }}>
+                        {e.type === 'deposit' && e.source === 'bankDeposits' && e.isPaymentDeduction !== true
+                          ? <button onClick={() => handleDeleteBankEntry(e)} style={{ padding: '4px 6px', fontSize: '11px', color: 'white', background: '#dc3545', border: 'none', borderRadius: '3px' }}>Del</button>
+                          : ''}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
