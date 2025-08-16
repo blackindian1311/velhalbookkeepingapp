@@ -32,6 +32,37 @@ const filterTransactionsByDate = (transactions, startDate, endDate) => {
   });
 };
 
+// Calculate remaining salary for current month
+const calculateRemainingSalary = (employee, salaryTransactions) => {
+  if (!employee.salaryPeriodStart || !employee.salaryPeriodEnd || !employee.basicSalary) {
+    return employee.basicSalary || 0;
+  }
+  
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+  
+  // Get current salary period dates
+  const periodStart = new Date(currentYear, currentMonth, employee.salaryPeriodStart);
+  const periodEnd = new Date(currentYear, currentMonth, employee.salaryPeriodEnd);
+  
+  // If period end is before start, it means it goes to next month
+  if (periodEnd < periodStart) {
+    periodEnd.setMonth(periodEnd.getMonth() + 1);
+  }
+  
+  // Calculate total paid in current period
+  const paidInPeriod = salaryTransactions
+    .filter(tx => 
+      tx.employeeName === employee.name &&
+      new Date(tx.date) >= periodStart &&
+      new Date(tx.date) <= periodEnd
+    )
+    .reduce((total, tx) => total + asNumber(tx.amount), 0);
+  
+  return Math.max(0, asNumber(employee.basicSalary) - paidInPeriod);
+};
+
 const PartyInfoTable = ({ parties = [], onEditParty }) => {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -98,6 +129,67 @@ const PartyInfoTable = ({ parties = [], onEditParty }) => {
         <button disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</button>
         <button disabled={page >= totalPages} onClick={() => setPage(page + 1)} style={{ marginLeft: 8 }}>Next</button>
       </div>
+    </div>
+  );
+};
+
+// Employee Management Components
+const EmployeeTable = ({ employees, onEditEmployee, onSetupSalary, onViewEmployee }) => {
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table className='transaction-table'>
+        <thead>
+          <tr>
+            <th style={{ padding: '8px' }}>Employee Name</th>
+            <th style={{ padding: '8px' }}>Basic Salary</th>
+            <th style={{ padding: '8px' }}>Salary Period</th>
+            <th style={{ padding: '8px' }}>Last Updated</th>
+            <th style={{ padding: '8px' }}>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {employees.length === 0 && (
+            <tr><td colSpan={5} style={{ textAlign: 'center', color: '#888', padding: '20px' }}>No employees found.</td></tr>
+          )}
+          {employees.map((emp, i) => (
+            <tr key={emp.id || i}>
+              <td style={{ padding: '8px', fontSize: '14px', fontWeight: 'bold' }}>{emp.name}</td>
+              <td style={{ padding: '8px' }}>
+                {emp.basicSalary ? `₹${asNumber(emp.basicSalary).toFixed(2)}` : 'Not Set'}
+              </td>
+              <td style={{ padding: '8px' }}>
+                {emp.salaryPeriodStart && emp.salaryPeriodEnd 
+                  ? `${emp.salaryPeriodStart} to ${emp.salaryPeriodEnd} of month`
+                  : 'Not Set'
+                }
+              </td>
+              <td style={{ padding: '8px' }}>
+                {emp.salaryLastUpdated ? formatDate(emp.salaryLastUpdated) : '-'}
+              </td>
+              <td style={{ padding: '8px' }}>
+                <button 
+                  onClick={() => onViewEmployee(emp)}
+                  style={{ padding: '4px 8px', fontSize: '12px', background: '#28a745', color: 'white', border: 'none', borderRadius: '3px', marginRight: '5px' }}
+                >
+                  View
+                </button>
+                <button 
+                  onClick={() => onEditEmployee(emp)}
+                  style={{ padding: '4px 8px', fontSize: '12px', background: '#007bff', color: 'white', border: 'none', borderRadius: '3px', marginRight: '5px' }}
+                >
+                  Edit
+                </button>
+                <button 
+                  onClick={() => onSetupSalary(emp)}
+                  style={{ padding: '4px 8px', fontSize: '12px', background: '#ffc107', color: 'black', border: 'none', borderRadius: '3px' }}
+                >
+                  Salary Setup
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 };
@@ -227,6 +319,20 @@ const HomePage = () => {
   const [editingParty, setEditingParty] = useState(null);
   const [view, setView] = useState('home');
 
+  // Employee Management States
+  const [employees, setEmployees] = useState([]);
+  const [showAddEmployee, setShowAddEmployee] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState(null);
+  const [settingSalaryFor, setSettingSalaryFor] = useState(null);
+  const [viewingEmployee, setViewingEmployee] = useState(null);
+  const [employeeForm, setEmployeeForm] = useState({
+    name: '',
+    basicSalary: '',
+    salaryPeriodStart: '',
+    salaryPeriodEnd: ''
+  });
+  const [selectedEmployee, setSelectedEmployee] = useState('');
+
   const [bankBalance, setBankBalance] = useState(0);
   const [depositAmount, setDepositAmount] = useState('');
   const [depositDate, setDepositDate] = useState('');
@@ -297,6 +403,9 @@ const HomePage = () => {
     const unsubSalary = onSnapshot(collection(db, 'salaries'), snap =>
       setSalaryTransactions(snap.docs.map(d => ({ id: d.id, type: 'salary', ...d.data() })))
     );
+    const unsubEmployees = onSnapshot(collection(db, 'employees'), snap =>
+      setEmployees(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+    );
     const unsubDepos = onSnapshot(collection(db, 'bankDeposits'), snap =>
       setBankDeposits(snap.docs.map(d => ({ id: d.id, ...d.data() })))
     );
@@ -304,7 +413,7 @@ const HomePage = () => {
       setBankBalance(ds.exists() ? (ds.data().balance || 0) : 0)
     );
     return () => {
-      unsubParties(); unsubPurch(); unsubPay(); unsubRet(); unsubSalary(); unsubDepos(); unsubBank();
+      unsubParties(); unsubPurch(); unsubPay(); unsubRet(); unsubSalary(); unsubEmployees(); unsubDepos(); unsubBank();
     };
   }, []);
 
@@ -374,6 +483,110 @@ const HomePage = () => {
     checkNumber: '', salaryDate: '', employeeName: '', 
     salaryAmount: '', comment: '', hasGST: true
   });
+
+  const clearEmployeeForm = () => setEmployeeForm({
+    name: '', basicSalary: '', salaryPeriodStart: '', salaryPeriodEnd: ''
+  });
+
+  // Employee Management Functions
+  const handleAddEmployee = async () => {
+    if (!employeeForm.name.trim()) {
+      alert('Please enter employee name.');
+      return;
+    }
+    
+    try {
+      const employeeData = {
+        name: employeeForm.name.trim(),
+        createdDate: new Date().toISOString(),
+        basicSalary: employeeForm.basicSalary ? asNumber(employeeForm.basicSalary) : null,
+        salaryPeriodStart: employeeForm.salaryPeriodStart || null,
+        salaryPeriodEnd: employeeForm.salaryPeriodEnd || null,
+        salaryLastUpdated: employeeForm.basicSalary ? new Date().toISOString() : null
+      };
+      
+      await addDoc(collection(db, 'employees'), employeeData);
+      clearEmployeeForm();
+      setShowAddEmployee(false);
+      alert('Employee added successfully!');
+    } catch (error) {
+      console.error('Error adding employee:', error);
+      alert('Failed to add employee.');
+    }
+  };
+
+  const handleEditEmployee = (employee) => {
+    setEditingEmployee(employee);
+    setEmployeeForm({
+      name: employee.name,
+      basicSalary: employee.basicSalary || '',
+      salaryPeriodStart: employee.salaryPeriodStart || '',
+      salaryPeriodEnd: employee.salaryPeriodEnd || ''
+    });
+  };
+
+  const handleUpdateEmployee = async () => {
+    if (!employeeForm.name.trim()) {
+      alert('Please enter employee name.');
+      return;
+    }
+    
+    try {
+      const updatedData = {
+        name: employeeForm.name.trim(),
+        basicSalary: employeeForm.basicSalary ? asNumber(employeeForm.basicSalary) : editingEmployee.basicSalary,
+        salaryPeriodStart: employeeForm.salaryPeriodStart || editingEmployee.salaryPeriodStart,
+        salaryPeriodEnd: employeeForm.salaryPeriodEnd || editingEmployee.salaryPeriodEnd,
+        salaryLastUpdated: employeeForm.basicSalary !== String(editingEmployee.basicSalary) ? new Date().toISOString() : editingEmployee.salaryLastUpdated
+      };
+      
+      await updateDoc(doc(db, 'employees', editingEmployee.id), updatedData);
+      setEditingEmployee(null);
+      clearEmployeeForm();
+      alert('Employee updated successfully!');
+    } catch (error) {
+      console.error('Error updating employee:', error);
+      alert('Failed to update employee.');
+    }
+  };
+
+  const handleSetupSalary = (employee) => {
+    setSettingSalaryFor(employee);
+    setEmployeeForm({
+      name: employee.name,
+      basicSalary: employee.basicSalary || '',
+      salaryPeriodStart: employee.salaryPeriodStart || '1',
+      salaryPeriodEnd: employee.salaryPeriodEnd || '30'
+    });
+  };
+
+  const handleSaveSalarySetup = async () => {
+    if (!employeeForm.basicSalary || !employeeForm.salaryPeriodStart || !employeeForm.salaryPeriodEnd) {
+      alert('Please fill all salary setup fields.');
+      return;
+    }
+    
+    try {
+      const updatedData = {
+        basicSalary: asNumber(employeeForm.basicSalary),
+        salaryPeriodStart: parseInt(employeeForm.salaryPeriodStart),
+        salaryPeriodEnd: parseInt(employeeForm.salaryPeriodEnd),
+        salaryLastUpdated: new Date().toISOString()
+      };
+      
+      await updateDoc(doc(db, 'employees', settingSalaryFor.id), updatedData);
+      setSettingSalaryFor(null);
+      clearEmployeeForm();
+      alert('Salary setup completed successfully!');
+    } catch (error) {
+      console.error('Error setting up salary:', error);
+      alert('Failed to setup salary.');
+    }
+  };
+
+  const handleViewEmployee = (employee) => {
+    setViewingEmployee(employee);
+  };
 
   const handleDeleteTransaction = async (tx) => {
     const msg =
@@ -517,11 +730,11 @@ const HomePage = () => {
     clearFormFields();
   };
 
-  // UPDATED: Salary handler - NO bank connection
+  // UPDATED: Salary handler - NO bank connection, but with employee selection
   const handleAddSalary = async () => {
-    const { salaryDate, employeeName, salaryAmount } = form;
-    if (!salaryDate || !employeeName || !salaryAmount) { 
-      alert('Please fill all salary fields.'); 
+    const { salaryDate, salaryAmount } = form;
+    if (!salaryDate || !salaryAmount || !selectedEmployee) { 
+      alert('Please fill all salary fields and select an employee.'); 
       return; 
     }
     const amount = asNumber(salaryAmount);
@@ -530,11 +743,12 @@ const HomePage = () => {
     await addDoc(collection(db, 'salaries'), {
       type: 'salary',
       amount: amount,
-      employeeName: employeeName,
+      employeeName: selectedEmployee,
       date: salaryDate
     });
 
     clearFormFields();
+    setSelectedEmployee('');
     alert('Salary payment recorded successfully.');
   };
 
@@ -1049,7 +1263,7 @@ const HomePage = () => {
     <div className='home-page'>
       <div className='sidebar'>
         <h1 className='nrv-logo'>NRV</h1>
-        {['home', 'purchase', 'pay', 'return', 'balance', 'party', 'bank', 'salary'].map(btn => (
+        {['home', 'purchase', 'pay', 'return', 'balance', 'party', 'bank', 'employee', 'salary'].map(btn => (
           <button key={btn} style={{ marginBottom: '15px' }} onClick={() => setView(btn)}>
             {btn.charAt(0).toUpperCase() + btn.slice(1)}
           </button>
@@ -1136,6 +1350,165 @@ const HomePage = () => {
           </div>
         )}
 
+        {/* Employee Modals */}
+        {(showAddEmployee || editingEmployee) && (
+          <div className='modal'>
+            <h3>{editingEmployee ? 'Edit Employee' : 'Add New Employee'}</h3>
+            <div style={{ marginBottom: 15 }}>
+              <label>Employee Name:</label>
+              <input 
+                type='text' 
+                value={employeeForm.name} 
+                onChange={e => setEmployeeForm({...employeeForm, name: e.target.value})}
+                placeholder="Enter employee name"
+                style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+              />
+            </div>
+            <div style={{ marginBottom: 15 }}>
+              <label>Basic Salary (Optional):</label>
+              <input 
+                type='number' 
+                value={employeeForm.basicSalary} 
+                onChange={e => setEmployeeForm({...employeeForm, basicSalary: e.target.value})}
+                placeholder="Enter basic salary"
+                style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: '10px', marginBottom: 15 }}>
+              <div style={{ flex: 1 }}>
+                <label>Salary Period Start (Day of Month):</label>
+                <input 
+                  type='number' 
+                  min="1" 
+                  max="31"
+                  value={employeeForm.salaryPeriodStart} 
+                  onChange={e => setEmployeeForm({...employeeForm, salaryPeriodStart: e.target.value})}
+                  placeholder="1"
+                  style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label>Salary Period End (Day of Month):</label>
+                <input 
+                  type='number' 
+                  min="1" 
+                  max="31"
+                  value={employeeForm.salaryPeriodEnd} 
+                  onChange={e => setEmployeeForm({...employeeForm, salaryPeriodEnd: e.target.value})}
+                  placeholder="30"
+                  style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+                />
+              </div>
+            </div>
+            <div style={{ marginTop: 20 }}>
+              {editingEmployee ? (
+                <>
+                  <button onClick={handleUpdateEmployee} style={{ marginRight: 10, padding: '8px 16px', background: '#28a745', color: 'white', border: 'none', borderRadius: '4px' }}>Update Employee</button>
+                  <button onClick={() => { setEditingEmployee(null); clearEmployeeForm(); }} style={{ padding: '8px 16px', background: '#6c757d', color: 'white', border: 'none', borderRadius: '4px' }}>Cancel</button>
+                </>
+              ) : (
+                <>
+                  <button onClick={handleAddEmployee} style={{ marginRight: 10, padding: '8px 16px', background: '#28a745', color: 'white', border: 'none', borderRadius: '4px' }}>Add Employee</button>
+                  <button onClick={() => { setShowAddEmployee(false); clearEmployeeForm(); }} style={{ padding: '8px 16px', background: '#6c757d', color: 'white', border: 'none', borderRadius: '4px' }}>Cancel</button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {settingSalaryFor && (
+          <div className='modal'>
+            <h3>Salary Setup for {settingSalaryFor.name}</h3>
+            <div style={{ marginBottom: 15 }}>
+              <label>Basic Salary:</label>
+              <input 
+                type='number' 
+                value={employeeForm.basicSalary} 
+                onChange={e => setEmployeeForm({...employeeForm, basicSalary: e.target.value})}
+                placeholder="Enter basic salary"
+                style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: '10px', marginBottom: 15 }}>
+              <div style={{ flex: 1 }}>
+                <label>Salary Period Start (Day):</label>
+                <input 
+                  type='number' 
+                  min="1" 
+                  max="31"
+                  value={employeeForm.salaryPeriodStart} 
+                  onChange={e => setEmployeeForm({...employeeForm, salaryPeriodStart: e.target.value})}
+                  style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label>Salary Period End (Day):</label>
+                <input 
+                  type='number' 
+                  min="1" 
+                  max="31"
+                  value={employeeForm.salaryPeriodEnd} 
+                  onChange={e => setEmployeeForm({...employeeForm, salaryPeriodEnd: e.target.value})}
+                  style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+                />
+              </div>
+            </div>
+            <div style={{ marginTop: 20 }}>
+              <button onClick={handleSaveSalarySetup} style={{ marginRight: 10, padding: '8px 16px', background: '#28a745', color: 'white', border: 'none', borderRadius: '4px' }}>Save Setup</button>
+              <button onClick={() => { setSettingSalaryFor(null); clearEmployeeForm(); }} style={{ padding: '8px 16px', background: '#6c757d', color: 'white', border: 'none', borderRadius: '4px' }}>Cancel</button>
+            </div>
+          </div>
+        )}
+
+        {viewingEmployee && (
+          <div className='modal'>
+            <div style={{ maxWidth: 600, minWidth: 500, margin: 'auto', border: '1px solid #bbb', borderRadius: 6, background: '#fff', padding: 20 }}>
+              <div style={{ textAlign: 'center', marginBottom: 20 }}>
+                <h1 style={{ fontSize: '36px', margin: '10px 0', color: '#333' }}>
+                  {viewingEmployee.name.toUpperCase()}
+                </h1>
+                <div style={{ fontSize: '24px', color: '#007bff', fontWeight: 'bold' }}>
+                  Remaining This Month: ₹{calculateRemainingSalary(viewingEmployee, salaryTransactions).toFixed(2)}
+                </div>
+              </div>
+              
+              <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '8px', marginBottom: '15px' }}>
+                <h4 style={{ marginTop: 0 }}>Employee Details</h4>
+                <p><strong>Basic Salary:</strong> ₹{viewingEmployee.basicSalary ? asNumber(viewingEmployee.basicSalary).toFixed(2) : 'Not Set'}</p>
+                <p><strong>Salary Period:</strong> {viewingEmployee.salaryPeriodStart && viewingEmployee.salaryPeriodEnd 
+                  ? `${viewingEmployee.salaryPeriodStart} to ${viewingEmployee.salaryPeriodEnd} of each month`
+                  : 'Not Set'
+                }</p>
+                <p><strong>Last Updated:</strong> {viewingEmployee.salaryLastUpdated ? formatDate(viewingEmployee.salaryLastUpdated) : '-'}</p>
+              </div>
+
+              <div style={{ marginBottom: '15px' }}>
+                <h4>Recent Salary Payments</h4>
+                <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                  {salaryTransactions
+                    .filter(sal => sal.employeeName === viewingEmployee.name)
+                    .sort((a, b) => new Date(b.date) - new Date(a.date))
+                    .slice(0, 5)
+                    .map((sal, idx) => (
+                      <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px', background: idx % 2 === 0 ? '#f8f9fa' : 'white', borderRadius: '4px', marginBottom: '4px' }}>
+                        <span>{formatDate(sal.date)}</span>
+                        <span>₹{asNumber(sal.amount).toFixed(2)}</span>
+                      </div>
+                    ))
+                  }
+                  {salaryTransactions.filter(sal => sal.employeeName === viewingEmployee.name).length === 0 && (
+                    <p style={{ color: '#888' }}>No salary payments yet</p>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ textAlign: 'center' }}>
+                <button onClick={() => setViewingEmployee(null)} style={{ padding: '10px 20px', background: '#007bff', color: 'white', border: 'none', borderRadius: '4px' }}>Close</button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {commentTxModal && <CommentModal tx={commentTxModal} onClose={() => setCommentTxModal(null)} />}
 
         {editingParty && (
@@ -1172,6 +1545,26 @@ const HomePage = () => {
               onDelete={handleDeleteTransaction}
             />
           </>
+        )}
+
+        {view === 'employee' && (
+          <div className='form-container'>
+            <h2>Employee Management</h2>
+            <button 
+              className='addPurchase-button' 
+              onClick={() => setShowAddEmployee(true)} 
+              style={{ marginBottom: '20px' }}
+            >
+              Add New Employee
+            </button>
+            
+            <EmployeeTable 
+              employees={employees} 
+              onEditEmployee={handleEditEmployee}
+              onSetupSalary={handleSetupSalary}
+              onViewEmployee={handleViewEmployee}
+            />
+          </div>
         )}
 
         {view === 'purchase' && (
@@ -1419,18 +1812,64 @@ const HomePage = () => {
         {view === 'salary' && (
           <div className='form-container'>
             <h2>Salary Payment</h2>
+            
+            {/* Employee Selection with Big Name Display */}
+            <select 
+              value={selectedEmployee} 
+              onChange={e => setSelectedEmployee(e.target.value)}
+              style={{ marginBottom: '20px', padding: '10px', width: '100%', fontSize: '16px' }}
+            >
+              <option value=''>Select Employee</option>
+              {employees.map((emp, i) => (
+                <option key={i} value={emp.name}>{emp.name}</option>
+              ))}
+            </select>
+
+            {selectedEmployee && (
+              <div style={{ 
+                textAlign: 'center', 
+                marginBottom: '20px', 
+                padding: '20px', 
+                background: '#f8f9fa', 
+                borderRadius: '8px',
+                border: '2px solid #007bff'
+              }}>
+                <h1 style={{ 
+                  fontSize: '48px', 
+                  margin: '10px 0', 
+                  color: '#007bff',
+                  textTransform: 'uppercase',
+                  letterSpacing: '2px'
+                }}>
+                  {selectedEmployee}
+                </h1>
+                <div style={{ fontSize: '24px', color: '#28a745', fontWeight: 'bold' }}>
+                  {(() => {
+                    const emp = employees.find(e => e.name === selectedEmployee);
+                    return emp ? `Remaining This Month: ₹${calculateRemainingSalary(emp, salaryTransactions).toFixed(2)}` : 'Employee not found';
+                  })()}
+                </div>
+                {(() => {
+                  const emp = employees.find(e => e.name === selectedEmployee);
+                  return emp && emp.basicSalary ? (
+                    <div style={{ fontSize: '18px', color: '#666', marginTop: '10px' }}>
+                      Basic Salary: ₹{asNumber(emp.basicSalary).toFixed(2)} | 
+                      Period: {emp.salaryPeriodStart}-{emp.salaryPeriodEnd} of month
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: '16px', color: '#dc3545', marginTop: '10px' }}>
+                      ⚠️ Salary not configured for this employee
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+            
             <input 
               type='date' 
               value={form.salaryDate} 
               onChange={e => setForm({ ...form, salaryDate: e.target.value })} 
               placeholder='Select Date'
-              style={{ marginBottom: '10px' }}
-            />
-            <input 
-              type='text' 
-              placeholder='Employee Name' 
-              value={form.employeeName} 
-              onChange={e => setForm({ ...form, employeeName: e.target.value })}
               style={{ marginBottom: '10px' }}
             />
             <input 
@@ -1440,8 +1879,11 @@ const HomePage = () => {
               onChange={e => setForm({ ...form, salaryAmount: e.target.value })}
               style={{ marginBottom: '10px' }}
             />
-            <button className='addPurchase-button' onClick={handleAddSalary}>Add Salary Payment</button>
-            <button className='clearForm-button' onClick={clearFormFields} style={{ marginLeft: 12 }}>Clear</button>
+            
+            <div style={{ marginBottom: '20px' }}>
+              <button className='addPurchase-button' onClick={handleAddSalary}>Pay Salary</button>
+              <button className='clearForm-button' onClick={() => { clearFormFields(); setSelectedEmployee(''); }} style={{ marginLeft: 12 }}>Clear</button>
+            </div>
 
             <h3 style={{ marginTop: '30px' }}>Salary History</h3>
             <div style={{ marginBottom: '15px' }}>
