@@ -689,21 +689,30 @@ const HomePage = () => {
     clearFormFields();
   };
 
+  // COMPLETELY UPDATED: Payment handler with ALL restrictions removed
   const handleAddPayment = async () => {
     const { payment, paymentMethod, date, checkNumber } = form;
     const amountToPay = asNumber(payment);
-    if (!payment || !paymentMethod || !date || !selectedParty) { alert('Fill all payment fields.'); return; }
-    const owes = filteredTransactions.reduce((t, tx) => {
-      if (tx.type === 'purchase') return t + asNumber(tx.amount);
-      if (tx.type === 'payment' || tx.type === 'return') return t - asNumber(tx.amount);
-      return t;
-    }, 0);
-    if (owes <= 0) { alert('No outstanding balance.'); return; }
-    if (amountToPay > owes) { alert(`Cannot pay more than owed. Owes ₹${(owes || 0).toFixed(2)}.`); return; }
-
+    
+    // Only check if required fields are filled
+    if (!payment || !paymentMethod || !date || !selectedParty) { 
+      alert('Fill all payment fields.'); 
+      return; 
+    }
+    
+    // COMPLETELY REMOVED: All balance checking code
+    // COMPLETELY REMOVED: owes calculation
+    // COMPLETELY REMOVED: "Cannot pay more than owed" alert
+    // COMPLETELY REMOVED: "No outstanding balance" alert
+    
+    // Now allows ANY payment amount - no restrictions
     await addDoc(collection(db, 'payments'), {
-      type: 'payment', amount: amountToPay, method: paymentMethod,
-      party: selectedParty, date, checkNumber: paymentMethod === 'Check' ? checkNumber : null
+      type: 'payment', 
+      amount: amountToPay, 
+      method: paymentMethod,
+      party: selectedParty, 
+      date, 
+      checkNumber: paymentMethod === 'Check' ? checkNumber : null
     });
 
     if (paymentMethod !== 'Cash') {
@@ -716,6 +725,7 @@ const HomePage = () => {
         paymentMethod
       });
     }
+    
     clearFormFields();
   };
 
