@@ -116,6 +116,7 @@ function CommentModal({ tx, onClose }) {
           {tx.billNumber && <div><strong>Bill No:</strong> {tx.billNumber}</div>}
           {tx.method && <div><strong>Method:</strong> {tx.method}</div>}
           {tx.checkNumber && <div><strong>Check No:</strong> {tx.checkNumber}</div>}
+          {tx.employeeName && <div><strong>Employee:</strong> {tx.employeeName}</div>}
           <div><strong>GST Applied:</strong> {tx.hasGST !== false ? 'Yes' : 'No'}</div>
         </div>
         <div>
@@ -233,6 +234,7 @@ const HomePage = () => {
   const [purchaseTransactions, setPurchaseTransactions] = useState([]);
   const [paymentTransactions, setPaymentTransactions] = useState([]);
   const [returnTransactions, setReturnTransactions] = useState([]);
+  const [salaryTransactions, setSalaryTransactions] = useState([]);
   const [bankDeposits, setBankDeposits] = useState([]);
   const [partiesInfo, setPartiesInfo] = useState([]);
 
@@ -251,7 +253,9 @@ const HomePage = () => {
     returnAmount: '',
     returnDate: '',
     checkNumber: '',
-    salaryPaymentName: '',
+    salaryDate: '',
+    employeeName: '',
+    salaryAmount: '',
     comment: '',
     hasGST: true
   });
@@ -270,6 +274,8 @@ const HomePage = () => {
   const [balanceFilterEnd, setBalanceFilterEnd] = useState('');
   const [bankFilterStart, setBankFilterStart] = useState('');
   const [bankFilterEnd, setBankFilterEnd] = useState('');
+  const [salaryFilterStart, setSalaryFilterStart] = useState('');
+  const [salaryFilterEnd, setSalaryFilterEnd] = useState('');
 
   // Export date range (for home page)
   const [exportStartDate, setExportStartDate] = useState('');
@@ -288,6 +294,9 @@ const HomePage = () => {
     const unsubRet = onSnapshot(collection(db, 'returns'), snap =>
       setReturnTransactions(snap.docs.map(d => ({ id: d.id, type: 'return', ...d.data() })))
     );
+    const unsubSalary = onSnapshot(collection(db, 'salaries'), snap =>
+      setSalaryTransactions(snap.docs.map(d => ({ id: d.id, type: 'salary', ...d.data() })))
+    );
     const unsubDepos = onSnapshot(collection(db, 'bankDeposits'), snap =>
       setBankDeposits(snap.docs.map(d => ({ id: d.id, ...d.data() })))
     );
@@ -295,10 +304,11 @@ const HomePage = () => {
       setBankBalance(ds.exists() ? (ds.data().balance || 0) : 0)
     );
     return () => {
-      unsubParties(); unsubPurch(); unsubPay(); unsubRet(); unsubDepos(); unsubBank();
+      unsubParties(); unsubPurch(); unsubPay(); unsubRet(); unsubSalary(); unsubDepos(); unsubBank();
     };
   }, []);
 
+  // REMOVED salary from allTransactions - keep salary separate
   const allTransactions = [...purchaseTransactions, ...paymentTransactions, ...returnTransactions]
     .sort((a, b) => new Date(b.date) - new Date(a.date));
 
@@ -312,6 +322,7 @@ const HomePage = () => {
     return t;
   }, 0);
 
+  // REMOVED salary from bank ledger - keep bank separate from salary
   const getBankLedger = () => {
     let ledger = [];
     bankDeposits.forEach(d => {
@@ -360,7 +371,8 @@ const HomePage = () => {
   const clearFormFields = () => setForm({
     amount: '', billNumber: '', date: '', payment: '',
     paymentMethod: '', returnAmount: '', returnDate: '',
-    checkNumber: '', salaryPaymentName: '', comment: '', hasGST: true
+    checkNumber: '', salaryDate: '', employeeName: '', 
+    salaryAmount: '', comment: '', hasGST: true
   });
 
   const handleDeleteTransaction = async (tx) => {
@@ -475,8 +487,6 @@ const HomePage = () => {
     }, 0);
     if (owes <= 0) { alert('No outstanding balance.'); return; }
     if (amountToPay > owes) { alert(`Cannot pay more than owed. Owes ₹${(owes || 0).toFixed(2)}.`); return; }
-    
-    // REMOVED: Bank balance check - payments can proceed regardless of bank balance
 
     await addDoc(collection(db, 'payments'), {
       type: 'payment', amount: amountToPay, method: paymentMethod,
@@ -507,11 +517,31 @@ const HomePage = () => {
     clearFormFields();
   };
 
+  // UPDATED: Salary handler - NO bank connection
+  const handleAddSalary = async () => {
+    const { salaryDate, employeeName, salaryAmount } = form;
+    if (!salaryDate || !employeeName || !salaryAmount) { 
+      alert('Please fill all salary fields.'); 
+      return; 
+    }
+    const amount = asNumber(salaryAmount);
+    if (amount <= 0) { alert('Enter valid salary amount'); return; }
+
+    await addDoc(collection(db, 'salaries'), {
+      type: 'salary',
+      amount: amount,
+      employeeName: employeeName,
+      date: salaryDate
+    });
+
+    clearFormFields();
+    alert('Salary payment recorded successfully.');
+  };
+
   const handleDeposit = async () => {
     const amount = asNumber(depositAmount);
     const dateToUse = depositDate || new Date().toISOString();
     if (amount > 0) {
-      // REMOVED: No balance check - deposits can proceed regardless of current balance
       await setDoc(doc(db, 'meta', 'bank'), { balance: bankBalance + amount });
       await addDoc(collection(db, 'bankDeposits'), {
         amount, date: dateToUse, isPaymentDeduction: false
@@ -574,7 +604,10 @@ const HomePage = () => {
     setEditForm({});
   };
 
-  const handleEditCancel = () => { setEditingTransaction(null); setEditForm({}); };
+  const handleEditCancel = () => { 
+    setEditingTransaction(null); 
+    setEditForm({}); 
+  };
 
   const TransactionTable = ({ transactions, onEdit, onSeeComment, onDelete }) => {
     const txs = transactions.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -634,14 +667,18 @@ const HomePage = () => {
               return (
                 <tr key={tx.id || i}>
                   <td style={{ padding: '6px 4px', fontSize: '12px' }}>{formatDate(tx.date)}</td>
-                  <td style={{ padding: '6px 4px', fontSize: '12px', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tx.party}</td>
+                  <td style={{ padding: '6px 4px', fontSize: '12px', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {tx.party}
+                  </td>
                   <td style={{ padding: '6px 4px', fontSize: '12px' }}>{tx.type}</td>
                   <td style={{ padding: '6px 4px', fontSize: '12px' }}>{tx.billNumber || '-'}</td>
                   <td style={{ padding: '6px 4px', fontSize: '12px' }}>{tx.method || '-'}</td>
                   <td style={{ padding: '6px 4px', fontSize: '12px' }}>{tx.method === 'Check' && tx.checkNumber ? tx.checkNumber : '-'}</td>
                   <td style={{ padding: '6px 4px', fontSize: '12px' }}>₹{asNumber(tx.amount).toFixed(2)}</td>
                   <td style={{ padding: '6px 4px', fontSize: '12px' }}>{gst}</td>
-                  <td style={{ padding: '6px 4px', fontSize: '12px' }}>{debit !== null ? `₹${asNumber(debit).toFixed(2)}` : '-'}</td>
+                  <td style={{ padding: '6px 4px', fontSize: '12px' }}>
+                    {debit !== null ? `₹${asNumber(debit).toFixed(2)}` : '-'}
+                  </td>
                   <td style={{ padding: '6px 4px', fontSize: '12px' }}>{credit !== null ? `₹${asNumber(credit).toFixed(2)}` : '-'}</td>
                   <td style={{ padding: '6px 4px', fontSize: '12px' }}>₹{runningBalances[tx.id] !== undefined ? asNumber(runningBalances[tx.id]).toFixed(2) : '-'}</td>
                   <td style={{ padding: '6px 4px' }}>
@@ -674,6 +711,42 @@ const HomePage = () => {
                 </tr>
               );
             })}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  // UPDATED: Simplified Salary Table - NO edit/delete columns
+  const SalaryTable = ({ salaries }) => {
+    const sorted = salaries.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    return (
+      <div style={{ overflowX: 'auto', width: '100%' }}>
+        <table className='transaction-table' style={{ 
+          width: '100%', 
+          minWidth: '400px',
+          fontSize: '13px',
+          borderCollapse: 'collapse'
+        }}>
+          <thead>
+            <tr>
+              <th style={{ minWidth: '85px', padding: '8px 4px' }}>Date</th>
+              <th style={{ minWidth: '200px', padding: '8px 4px' }}>Employee Name</th>
+              <th style={{ minWidth: '100px', padding: '8px 4px' }}>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.length === 0 && (
+              <tr><td colSpan={3} style={{ textAlign: 'center', color: '#888', padding: '20px' }}>No salary records found.</td></tr>
+            )}
+            {sorted.map((salary, i) => (
+              <tr key={salary.id || i}>
+                <td style={{ padding: '6px 4px', fontSize: '12px' }}>{formatDate(salary.date)}</td>
+                <td style={{ padding: '6px 4px', fontSize: '12px' }}>{salary.employeeName}</td>
+                <td style={{ padding: '6px 4px', fontSize: '12px' }}>₹{asNumber(salary.amount).toFixed(2)}</td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
@@ -782,6 +855,30 @@ const HomePage = () => {
         headStyles: { fillColor: [41, 128, 185] }
       });
       doc.save('return_history.pdf');
+    }
+  };
+
+  const exportSalaryHistory = (format) => {
+    const filtered = filterTransactionsByDate(salaryTransactions, salaryFilterStart, salaryFilterEnd);
+    const headers = ['Date', 'Employee Name', 'Amount'];
+    const data = filtered.map(tx => [
+      formatDate(tx.date),
+      tx.employeeName,
+      `₹${asNumber(tx.amount).toFixed(2)}`
+    ]);
+    if (format === 'csv') {
+      downloadCSV('salary_history.csv', [headers, ...data]);
+    } else {
+      const doc = new jsPDF();
+      doc.text('Salary History Report', 14, 15);
+      autoTable(doc, {
+        startY: 25,
+        head: [headers],
+        body: data,
+        theme: 'striped',
+        headStyles: { fillColor: [41, 128, 185] }
+      });
+      doc.save('salary_history.pdf');
     }
   };
 
@@ -946,6 +1043,7 @@ const HomePage = () => {
   );
   const balanceFilteredTransactions = filterTransactionsByDate(filteredTransactions, balanceFilterStart, balanceFilterEnd);
   const bankFilteredLedger = filterTransactionsByDate(getBankLedger(), bankFilterStart, bankFilterEnd);
+  const salaryFilteredTransactions = filterTransactionsByDate(salaryTransactions, salaryFilterStart, salaryFilterEnd);
 
   return (
     <div className='home-page'>
@@ -1020,16 +1118,20 @@ const HomePage = () => {
               </>
             )}
             <label>Bill No: <input type='text' value={editForm.billNumber || ''} onChange={e => setEditForm(f => ({ ...f, billNumber: e.target.value }))} /></label>
-            <label>Method: <input type='text' value={editForm.method || ''} onChange={e => setEditForm(f => ({ ...f, method: e.target.value }))} /></label>
-            {editForm.method === 'Check' && (
-              <label>Check #: <input type='text' value={editForm.checkNumber || ''} onChange={e => setEditForm(f => ({ ...f, checkNumber: e.target.value }))} /></label>
+            {editingTransaction.type === 'payment' && (
+              <>
+                <label>Method: <input type='text' value={editForm.method || ''} onChange={e => setEditForm(f => ({ ...f, method: e.target.value }))} /></label>
+                {editForm.method === 'Check' && (
+                  <label>Check #: <input type='text' value={editForm.checkNumber || ''} onChange={e => setEditForm(f => ({ ...f, checkNumber: e.target.value }))} /></label>
+                )}
+              </>
             )}
             {editingTransaction.type === 'return' && (
               <label>Comment: <textarea value={editForm.comment || ''} onChange={e => setEditForm(f => ({ ...f, comment: e.target.value }))} /></label>
             )}
             <div style={{ marginTop: 8 }}>
               <button onClick={handleEditSave}>Save</button>
-              <button onClick={() => { setEditingTransaction(null); setEditForm({}); }}>Cancel</button>
+              <button onClick={handleEditCancel}>Cancel</button>
             </div>
           </div>
         )}
@@ -1317,6 +1419,38 @@ const HomePage = () => {
         {view === 'salary' && (
           <div className='form-container'>
             <h2>Salary Payment</h2>
+            <input 
+              type='date' 
+              value={form.salaryDate} 
+              onChange={e => setForm({ ...form, salaryDate: e.target.value })} 
+              placeholder='Select Date'
+              style={{ marginBottom: '10px' }}
+            />
+            <input 
+              type='text' 
+              placeholder='Employee Name' 
+              value={form.employeeName} 
+              onChange={e => setForm({ ...form, employeeName: e.target.value })}
+              style={{ marginBottom: '10px' }}
+            />
+            <input 
+              type='number' 
+              placeholder='Salary Amount' 
+              value={form.salaryAmount} 
+              onChange={e => setForm({ ...form, salaryAmount: e.target.value })}
+              style={{ marginBottom: '10px' }}
+            />
+            <button className='addPurchase-button' onClick={handleAddSalary}>Add Salary Payment</button>
+            <button className='clearForm-button' onClick={clearFormFields} style={{ marginLeft: 12 }}>Clear</button>
+
+            <h3 style={{ marginTop: '30px' }}>Salary History</h3>
+            <div style={{ marginBottom: '15px' }}>
+              <label>From: <input type='date' value={salaryFilterStart} onChange={e => setSalaryFilterStart(e.target.value)} /></label>
+              <label style={{ marginLeft: 12 }}>To: <input type='date' value={salaryFilterEnd} onChange={e => setSalaryFilterEnd(e.target.value)} /></label>
+              <button onClick={() => exportSalaryHistory('csv')} style={{ marginLeft: 12 }}>Export CSV</button>
+              <button onClick={() => exportSalaryHistory('pdf')} style={{ marginLeft: 6 }}>Export PDF</button>
+            </div>
+            <SalaryTable salaries={salaryFilteredTransactions} />
           </div>
         )}
       </div>
