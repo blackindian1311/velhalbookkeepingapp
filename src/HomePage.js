@@ -680,26 +680,6 @@ const HomePage = () => {
     );
   };
 
-  const SectionHistory = ({ type, party }) => {
-    const sectionTx = (
-      type === 'purchase' ? purchaseTransactions :
-      type === 'payment' ? paymentTransactions : returnTransactions
-    ).filter(tx => tx.party === party)
-     .sort((a, b) => new Date(b.date) - new Date(a.date));
-    if (sectionTx.length === 0) return <div style={{ marginTop: 12, color: '#888' }}>No {type}s for this party.</div>;
-    return (
-      <div style={{ marginTop: 18 }}>
-        <h4>Recent {type.charAt(0).toUpperCase() + type.slice(1)} History</h4>
-        <TransactionTable
-          transactions={sectionTx.slice(0, 6)}
-          onEdit={handleEditClick}
-          onSeeComment={setCommentTxModal}
-          onDelete={handleDeleteTransaction}
-        />
-      </div>
-    );
-  };
-
   const downloadCSV = (filename, rows) => {
     const csv = rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -998,8 +978,9 @@ const HomePage = () => {
                   display: 'flex',
                   justifyContent: 'center',
                   alignItems: 'center',
-                  marginTop: '10px',
-                  marginBottom: '10px',
+                  width: '100%',
+                  marginTop: '15px',
+                  marginBottom: '15px',
                   padding: '15px',
                   border: '1px solid #e0e0e0',
                   borderRadius: '8px',
@@ -1106,6 +1087,7 @@ const HomePage = () => {
               display: 'flex',
               justifyContent: 'center',
               alignItems: 'center',
+              width: '100%',
               marginTop: '15px',
               marginBottom: '15px',
               padding: '15px',
@@ -1161,8 +1143,6 @@ const HomePage = () => {
               onSeeComment={setCommentTxModal}
               onDelete={handleDeleteTransaction}
             />
-            
-            {selectedParty && <SectionHistory type='purchase' party={selectedParty} />}
           </div>
         )}
 
@@ -1200,8 +1180,6 @@ const HomePage = () => {
               onSeeComment={setCommentTxModal}
               onDelete={handleDeleteTransaction}
             />
-            
-            {selectedParty && <SectionHistory type='payment' party={selectedParty} />}
           </div>
         )}
 
@@ -1232,8 +1210,6 @@ const HomePage = () => {
               onSeeComment={setCommentTxModal}
               onDelete={handleDeleteTransaction}
             />
-            
-            {selectedParty && <SectionHistory type='return' party={selectedParty} />}
           </div>
         )}
 
