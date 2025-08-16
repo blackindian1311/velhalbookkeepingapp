@@ -32,7 +32,7 @@ const filterTransactionsByDate = (transactions, startDate, endDate) => {
   });
 };
 
-const PartyInfoTable = ({ parties = [] }) => {
+const PartyInfoTable = ({ parties = [], onEditParty }) => {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const rowsPerPage = 7;
@@ -64,11 +64,12 @@ const PartyInfoTable = ({ parties = [] }) => {
               <th>Bank Name</th>
               <th>Contact</th>
               <th>Mobile</th>
+              <th>Edit</th>
             </tr>
           </thead>
           <tbody>
             {shown.length === 0 && (
-              <tr><td colSpan={6} style={{ textAlign: 'center', color: '#888' }}>No parties found.</td></tr>
+              <tr><td colSpan={7} style={{ textAlign: 'center', color: '#888' }}>No parties found.</td></tr>
             )}
             {shown.map((p, i) => (
               <tr key={i}>
@@ -78,6 +79,14 @@ const PartyInfoTable = ({ parties = [] }) => {
                 <td>{p.bankName}</td>
                 <td>{p.contactName}</td>
                 <td>{p.contactMobile}</td>
+                <td>
+                  <button 
+                    onClick={() => onEditParty && onEditParty(p)}
+                    style={{ padding: '4px 8px', fontSize: '12px', background: '#007bff', color: 'white', border: 'none', borderRadius: '3px' }}
+                  >
+                    Edit
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -121,10 +130,100 @@ function CommentModal({ tx, onClose }) {
   );
 }
 
+function EditPartyModal({ party, onClose, onSave }) {
+  const [editPartyForm, setEditPartyForm] = useState({
+    businessName: party?.businessName || '',
+    phoneNumber: party?.phoneNumber || '',
+    bankNumber: party?.bankNumber || '',
+    bankName: party?.bankName || '',
+    contactName: party?.contactName || '',
+    contactMobile: party?.contactMobile || ''
+  });
+
+  const handleSave = async () => {
+    if (!editPartyForm.businessName || !editPartyForm.phoneNumber || !editPartyForm.bankNumber || 
+        !editPartyForm.contactName || !editPartyForm.contactMobile || !editPartyForm.bankName) {
+      alert('Please fill all fields.');
+      return;
+    }
+    await onSave(party.id, editPartyForm);
+    onClose();
+  };
+
+  if (!party) return null;
+
+  return (
+    <div className='modal'>
+      <div style={{ maxWidth: 500, minWidth: 400, margin: 'auto', border: '1px solid #bbb', borderRadius: 6, background: '#fff', padding: 20 }}>
+        <h3>Edit Party Details</h3>
+        <div style={{ marginBottom: 15 }}>
+          <label>Business Name:</label>
+          <input 
+            type='text' 
+            value={editPartyForm.businessName} 
+            onChange={e => setEditPartyForm({...editPartyForm, businessName: e.target.value})}
+            style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+          />
+        </div>
+        <div style={{ marginBottom: 15 }}>
+          <label>Phone:</label>
+          <input 
+            type='text' 
+            value={editPartyForm.phoneNumber} 
+            onChange={e => setEditPartyForm({...editPartyForm, phoneNumber: e.target.value})}
+            style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+          />
+        </div>
+        <div style={{ marginBottom: 15 }}>
+          <label>Bank Number:</label>
+          <input 
+            type='text' 
+            value={editPartyForm.bankNumber} 
+            onChange={e => setEditPartyForm({...editPartyForm, bankNumber: e.target.value})}
+            style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+          />
+        </div>
+        <div style={{ marginBottom: 15 }}>
+          <label>Bank Name:</label>
+          <input 
+            type='text' 
+            value={editPartyForm.bankName} 
+            onChange={e => setEditPartyForm({...editPartyForm, bankName: e.target.value})}
+            style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+          />
+        </div>
+        <div style={{ marginBottom: 15 }}>
+          <label>Contact Name:</label>
+          <input 
+            type='text' 
+            value={editPartyForm.contactName} 
+            onChange={e => setEditPartyForm({...editPartyForm, contactName: e.target.value})}
+            style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+          />
+        </div>
+        <div style={{ marginBottom: 15 }}>
+          <label>Contact Mobile:</label>
+          <input 
+            type='text' 
+            value={editPartyForm.contactMobile} 
+            onChange={e => setEditPartyForm({...editPartyForm, contactMobile: e.target.value})}
+            style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+          />
+        </div>
+        <div style={{ marginTop: 20 }}>
+          <button onClick={handleSave} style={{ marginRight: 10, padding: '8px 16px', background: '#28a745', color: 'white', border: 'none', borderRadius: '4px' }}>Save</button>
+          <button onClick={onClose} style={{ padding: '8px 16px', background: '#6c757d', color: 'white', border: 'none', borderRadius: '4px' }}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const HomePage = () => {
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [commentTxModal, setCommentTxModal] = useState(null);
+  const [editingParty, setEditingParty] = useState(null);
   const [view, setView] = useState('home');
 
   const [bankBalance, setBankBalance] = useState(0);
@@ -314,6 +413,20 @@ const HomePage = () => {
     }
   };
 
+  const handleEditParty = (party) => {
+    setEditingParty(party);
+  };
+
+  const handleSaveParty = async (partyId, partyData) => {
+    try {
+      await updateDoc(doc(db, 'parties', partyId), partyData);
+      alert('Party details updated successfully.');
+    } catch (e) {
+      console.error(e);
+      alert('Failed to update party details.');
+    }
+  };
+
   const handleAddParty = async () => {
     const f = partyInput;
     if (f.businessName && f.phoneNumber && f.bankNumber && f.contactName && f.contactMobile && f.bankName) {
@@ -362,7 +475,8 @@ const HomePage = () => {
     }, 0);
     if (owes <= 0) { alert('No outstanding balance.'); return; }
     if (amountToPay > owes) { alert(`Cannot pay more than owed. Owes ₹${(owes || 0).toFixed(2)}.`); return; }
-    if (paymentMethod !== 'Cash' && bankBalance < amountToPay) { alert('Not Enough Money in the Bank'); return; }
+    
+    // REMOVED: Bank balance check - payments can proceed regardless of bank balance
 
     await addDoc(collection(db, 'payments'), {
       type: 'payment', amount: amountToPay, method: paymentMethod,
@@ -397,6 +511,7 @@ const HomePage = () => {
     const amount = asNumber(depositAmount);
     const dateToUse = depositDate || new Date().toISOString();
     if (amount > 0) {
+      // REMOVED: No balance check - deposits can proceed regardless of current balance
       await setDoc(doc(db, 'meta', 'bank'), { balance: bankBalance + amount });
       await addDoc(collection(db, 'bankDeposits'), {
         amount, date: dateToUse, isPaymentDeduction: false
@@ -879,15 +994,36 @@ const HomePage = () => {
             </label>
             {editingTransaction.type === 'purchase' && (
               <>
-                <label style={{ display: 'flex', alignItems: 'center', marginTop: '10px' }}>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  marginTop: '10px',
+                  marginBottom: '10px',
+                  padding: '15px',
+                  border: '1px solid #e0e0e0',
+                  borderRadius: '8px',
+                  backgroundColor: '#f9f9f9'
+                }}>
                   <input 
                     type='checkbox' 
                     checked={editForm.hasGST} 
                     onChange={e => setEditForm(f => ({ ...f, hasGST: e.target.checked }))} 
-                    style={{ marginRight: '8px' }}
+                    style={{ 
+                      marginRight: '12px',
+                      width: '18px',
+                      height: '18px',
+                      cursor: 'pointer'
+                    }}
                   />
-                  Apply GST (5%)
-                </label>
+                  <span style={{ 
+                    fontSize: '16px',
+                    fontWeight: '500',
+                    color: '#333'
+                  }}>
+                    Apply GST (5%)
+                  </span>
+                </div>
                 {editForm.amount && !isNaN(asNumber(editForm.amount)) && (
                   <div style={{ fontSize: '14px', color: '#666', marginTop: '5px' }}>
                     {editForm.hasGST ? (
@@ -918,6 +1054,14 @@ const HomePage = () => {
         )}
 
         {commentTxModal && <CommentModal tx={commentTxModal} onClose={() => setCommentTxModal(null)} />}
+
+        {editingParty && (
+          <EditPartyModal 
+            party={editingParty} 
+            onClose={() => setEditingParty(null)} 
+            onSave={handleSaveParty}
+          />
+        )}
 
         {view === 'home' && (
           <>
@@ -958,15 +1102,36 @@ const HomePage = () => {
             <input type='text' placeholder='Bill No' value={form.billNumber} onChange={e => setForm({ ...form, billNumber: e.target.value })} />
             <input type='number' placeholder='Amount' value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} />
             
-            <label style={{ display: 'flex', alignItems: 'center', marginTop: '10px', marginBottom: '10px' }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginTop: '15px',
+              marginBottom: '15px',
+              padding: '15px',
+              border: '1px solid #e0e0e0',
+              borderRadius: '8px',
+              backgroundColor: '#f9f9f9'
+            }}>
               <input 
                 type='checkbox' 
                 checked={form.hasGST} 
                 onChange={e => setForm({ ...form, hasGST: e.target.checked })} 
-                style={{ marginRight: '8px' }}
+                style={{ 
+                  marginRight: '12px',
+                  width: '18px',
+                  height: '18px',
+                  cursor: 'pointer'
+                }}
               />
-              Apply GST (5%)
-            </label>
+              <span style={{ 
+                fontSize: '16px',
+                fontWeight: '500',
+                color: '#333'
+              }}>
+                Apply GST (5%)
+              </span>
+            </div>
             
             <button className='addPurchase-button' onClick={handleAddPurchase}>Add Purchase</button>
             <button className='clearForm-button' onClick={clearFormFields} style={{ marginLeft: 12 }}>Clear</button>
@@ -1104,7 +1269,7 @@ const HomePage = () => {
         {view === 'party' && (
           <div className='form-container'>
             <h2>All Parties</h2>
-            <PartyInfoTable parties={partiesInfo} />
+            <PartyInfoTable parties={partiesInfo} onEditParty={handleEditParty} />
             <button className='addPurchase-button' onClick={() => setShowPartyForm(s => !s)} style={{ margin: '18px 0 16px 0' }}>
               {showPartyForm ? 'Cancel' : 'Add New Party'}
             </button>
