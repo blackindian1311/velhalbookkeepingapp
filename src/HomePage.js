@@ -3,6 +3,7 @@ import './App.css';
 import { db } from "./firebase";
 import { collection, addDoc, updateDoc, doc, setDoc, onSnapshot } from "firebase/firestore";
 
+
 // Helper for numbers
 const asNumber = v => Number(typeof v === "string" ? v.replace(/,/g, "") : v) || 0;
 
@@ -14,20 +15,6 @@ const formatDate = (dateString) => {
   const month = String(date.getMonth() + 1).padStart(2,'0');
   const year = date.getFullYear();
   return `${day}/${month}/${year}`;
-};
-
-// Helper: display base amount before GST for purchases; payments/returns unchanged
-const getDisplayAmount = (tx) => {
-  if (tx?.type === 'purchase') {
-    if (tx.baseAmount !== undefined && tx.baseAmount !== null) {
-      return asNumber(tx.baseAmount);
-    }
-    if (tx.hasGST !== false) {
-      return asNumber(tx.amount) / 1.05;
-    }
-    return asNumber(tx.amount);
-  }
-  return asNumber(tx?.amount);
 };
 
 const PartyInfoTable = ({ parties = [] }) => {
@@ -163,6 +150,7 @@ const TransactionTable = ({ transactions, onEdit, onSeeComment }) => {
         </thead>
         <tbody>
           {txs.map((tx, i) => {
+            const party = tx.party || "";
             const debit = tx.type === 'purchase' ? asNumber(tx.amount) : null;
             const credit = (tx.type === 'payment' || tx.type === 'return') ? asNumber(tx.amount) : null;
             const gst = tx.type === 'purchase'
@@ -178,8 +166,7 @@ const TransactionTable = ({ transactions, onEdit, onSeeComment }) => {
                 <td>{tx.billNumber || '-'}</td>
                 <td>{tx.method || '-'}</td>
                 <td>{tx.method === 'Check' && tx.checkNumber ? tx.checkNumber : '-'}</td>
-                {/* Amount shows base for purchases; others unchanged */}
-                <td>₹{getDisplayAmount(tx).toFixed(2)}</td>
+                <td>₹{asNumber(tx.amount).toFixed(2)}</td>
                 <td>{gst}</td>
                 <td>{debit !== null ? `₹${asNumber(debit).toFixed(2)}` : '-'}</td>
                 <td>{credit !== null ? `₹${asNumber(credit).toFixed(2)}` : '-'}</td>
@@ -207,15 +194,47 @@ const HomePage = () => {
 
   // ...inside HomePage's return, your bank view...
   // ...unchanged code before...
-  {/*
-    Ensure your existing layout, headers, sidebars remain as in your app.
-    Only TransactionTable now displays base amount for purchase rows.
-  */}
-  return null;
+  {view === 'bank' && (
+    <div className="form-container">
+      <h2>Bank Balance: ₹{(bankBalance || 0).toFixed(2)}</h2>
+      <input type="number" value={depositAmount} onChange={e => setDepositAmount(e.target.value)} placeholder="Enter deposit amount" />
+      <input type="date" value={depositDate} onChange={e => setDepositDate(e.target.value)} placeholder="Enter deposit date" />
+      <button onClick={handleDeposit} className="addPurchase-button">Deposit</button>
+      {/* ...filters and buttons... */}
+      <h2 style={{ marginTop: '20px' }}>Bank Transaction History</h2>
+      <table className="transaction-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Party</th>
+            <th>Method</th>
+            <th>Check No.</th>
+            <th>Debit</th>
+            <th>Credit</th>
+            <th>Balance</th>
+          </tr>
+        </thead>
+        <tbody>
+          {filteredBankLedger.map((entry, idx) => (
+            <tr key={idx}>
+              <td>{formatDate(entry.date)}</td>
+              <td>{entry.party}</td>
+              <td>{entry.method}</td>
+              <td>{entry.checkNumber || '-'}</td>
+              <td style={{ color: entry.debit ? 'red' : 'black' }}>
+                {entry.debit ? `₹${entry.debit.toFixed(2)}` : '-'}
+              </td>
+              <td style={{ color: entry.credit ? 'green' : 'black' }}>
+                {entry.credit ? `₹${entry.credit.toFixed(2)}` : '-'}
+              </td>
+              <td>₹{entry.balance.toFixed(2)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )}
+  // ...rest of your HomePage render code...
 };
-
-// If your file actually renders different views based on state `view`,
-// keep that render logic exactly as you already have. The only functional change
-// needed is the getDisplayAmount helper and the Amount cell replacement above.
-
+// ...export default HomePage and other components...
 export default HomePage;
