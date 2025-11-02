@@ -694,18 +694,11 @@ const HomePage = () => {
     const { payment, paymentMethod, date, checkNumber } = form;
     const amountToPay = asNumber(payment);
     
-    // Only check if required fields are filled
     if (!payment || !paymentMethod || !date || !selectedParty) { 
       alert('Fill all payment fields.'); 
       return; 
     }
     
-    // COMPLETELY REMOVED: All balance checking code
-    // COMPLETELY REMOVED: owes calculation
-    // COMPLETELY REMOVED: "Cannot pay more than owed" alert
-    // COMPLETELY REMOVED: "No outstanding balance" alert
-    
-    // Now allows ANY payment amount - no restrictions
     await addDoc(collection(db, 'payments'), {
       type: 'payment', 
       amount: amountToPay, 
@@ -833,6 +826,22 @@ const HomePage = () => {
     setEditForm({}); 
   };
 
+  // Helper to display base amount for purchases
+  const displayBaseAmount = (tx) => {
+    if (tx.type === 'purchase') {
+      if (tx.baseAmount !== undefined && tx.baseAmount !== null) {
+        return asNumber(tx.baseAmount);
+      }
+      // Fallback: derive base from total amount if GST was applied
+      if (tx.hasGST !== false) {
+        return asNumber(tx.amount) / 1.05;
+      }
+      return asNumber(tx.amount);
+    }
+    // For payments and returns, amount is already base
+    return asNumber(tx.amount);
+  };
+
   const TransactionTable = ({ transactions, onEdit, onSeeComment, onDelete }) => {
     const txs = transactions.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
     const runningBalances = {};
@@ -888,6 +897,10 @@ const HomePage = () => {
                      : ((asNumber(tx.amount) / 1.05) * 0.05).toFixed(2))
                    : '₹0.00')
                 : '-';
+
+              // Display base amount in Amount column
+              const displayAmount = displayBaseAmount(tx);
+
               return (
                 <tr key={tx.id || i}>
                   <td style={{ padding: '6px 4px', fontSize: '12px' }}>{formatDate(tx.date)}</td>
@@ -898,7 +911,7 @@ const HomePage = () => {
                   <td style={{ padding: '6px 4px', fontSize: '12px' }}>{tx.billNumber || '-'}</td>
                   <td style={{ padding: '6px 4px', fontSize: '12px' }}>{tx.method || '-'}</td>
                   <td style={{ padding: '6px 4px', fontSize: '12px' }}>{tx.method === 'Check' && tx.checkNumber ? tx.checkNumber : '-'}</td>
-                  <td style={{ padding: '6px 4px', fontSize: '12px' }}>₹{asNumber(tx.amount).toFixed(2)}</td>
+                  <td style={{ padding: '6px 4px', fontSize: '12px' }}>₹{asNumber(displayAmount).toFixed(2)}</td>
                   <td style={{ padding: '6px 4px', fontSize: '12px' }}>{gst}</td>
                   <td style={{ padding: '6px 4px', fontSize: '12px' }}>
                     {debit !== null ? `₹${asNumber(debit).toFixed(2)}` : '-'}
@@ -995,16 +1008,22 @@ const HomePage = () => {
       purchaseFilterStart,
       purchaseFilterEnd
     );
-    const headers = ['Date', 'Party', 'Amount', 'GST', 'Bill No', 'GST Applied', 'Comment'];
-    const data = filtered.map(tx => [
-      formatDate(tx.date),
-      tx.party,
-      `₹${asNumber(tx.amount).toFixed(2)}`,
-      `₹${(tx.gstAmount || 0).toFixed(2)}`,
-      tx.billNumber || '-',
-      tx.hasGST !== false ? 'Yes' : 'No',
-      tx.comment || '-'
-    ]);
+    const headers = ['Date', 'Party', 'Base Amount', 'GST Amount', 'Bill No', 'GST Applied', 'Comment'];
+    const data = filtered.map(tx => {
+      const base = tx.baseAmount != null ? asNumber(tx.baseAmount)
+        : (tx.hasGST !== false ? asNumber(tx.amount) / 1.05 : asNumber(tx.amount));
+      const gstAmt = tx.gstAmount != null ? asNumber(tx.gstAmount)
+        : (tx.hasGST !== false ? base * 0.05 : 0);
+      return [
+        formatDate(tx.date),
+        tx.party,
+        `₹${base.toFixed(2)}`,
+        `₹${gstAmt.toFixed(2)}`,
+        tx.billNumber || '-',
+        tx.hasGST !== false ? 'Yes' : 'No',
+        tx.comment || '-'
+      ];
+    });
     if (format === 'csv') {
       downloadCSV('purchase_history.csv', [headers, ...data]);
     } else {
@@ -1046,7 +1065,7 @@ const HomePage = () => {
         head: [headers],
         body: data,
         theme: 'striped',
-        headStyles: { fillColor: [41, 128, 185] }
+        headStyles: { fillColor: [46, 204, 113] }
       });
       doc.save('payment_history.pdf');
     }
@@ -1076,836 +1095,216 @@ const HomePage = () => {
         head: [headers],
         body: data,
         theme: 'striped',
-        headStyles: { fillColor: [41, 128, 185] }
+        headStyles: { fillColor: [231, 76, 60] }
       });
       doc.save('return_history.pdf');
     }
   };
 
-  const exportSalaryHistory = (format) => {
-    const filtered = filterTransactionsByDate(salaryTransactions, salaryFilterStart, salaryFilterEnd);
-    const headers = ['Date', 'Employee Name', 'Amount'];
-    const data = filtered.map(tx => [
-      formatDate(tx.date),
-      tx.employeeName,
-      `₹${asNumber(tx.amount).toFixed(2)}`
-    ]);
-    if (format === 'csv') {
-      downloadCSV('salary_history.csv', [headers, ...data]);
-    } else {
-      const doc = new jsPDF();
-      doc.text('Salary History Report', 14, 15);
-      autoTable(doc, {
-        startY: 25,
-        head: [headers],
-        body: data,
-        theme: 'striped',
-        headStyles: { fillColor: [41, 128, 185] }
-      });
-      doc.save('salary_history.pdf');
-    }
-  };
-
-  const exportBalanceHistory = (format) => {
+  // Views rendering below (simplified; plug into your UI as before)
+  const currentTransactionsView = () => {
+    const base = [...purchaseTransactions, ...paymentTransactions, ...returnTransactions];
     const filtered = filterTransactionsByDate(
-      filteredTransactions,
-      balanceFilterStart,
-      balanceFilterEnd
+      selectedParty ? base.filter(tx => tx.party === selectedParty) : base,
+      homeFilterStart,
+      homeFilterEnd
     );
-    const headers = ['Date', 'Party', 'Type', 'Amount', 'GST', 'Method', 'Bill No', 'Comment'];
-    const data = filtered.map(tx => [
-      formatDate(tx.date),
-      tx.party,
-      tx.type,
-      `₹${asNumber(tx.amount).toFixed(2)}`,
-      tx.type === 'purchase' ? `₹${(tx.gstAmount || 0).toFixed(2)}` : '-',
-      tx.method || '-',
-      tx.billNumber || '-',
-      tx.comment || '-'
-    ]);
-    if (format === 'csv') {
-      downloadCSV('balance_history.csv', [headers, ...data]);
-    } else {
-      const doc = new jsPDF();
-      doc.text('Balance History Report', 14, 15);
-      autoTable(doc, {
-        startY: 25,
-        head: [headers],
-        body: data,
-        theme: 'striped',
-        headStyles: { fillColor: [41, 128, 185] }
-      });
-      doc.save('balance_history.pdf');
-    }
+    return (
+      <TransactionTable
+        transactions={filtered}
+        onEdit={handleEditClick}
+        onSeeComment={setCommentTxModal}
+        onDelete={handleDeleteTransaction}
+      />
+    );
   };
 
-  const exportBankHistory = (format) => {
-    const filtered = filterTransactionsByDate(getBankLedger(), bankFilterStart, bankFilterEnd);
-    const headers = ['Date', 'Party', 'Method', 'Check No', 'Debit', 'Credit', 'Balance'];
-    const data = filtered.map(entry => [
-      formatDate(entry.date),
-      entry.party,
-      entry.method,
-      entry.checkNumber || '-',
-      entry.debit ? `₹${entry.debit.toFixed(2)}` : '-',
-      entry.credit ? `₹${entry.credit.toFixed(2)}` : '-',
-      `₹${entry.balance.toFixed(2)}`
-    ]);
-    if (format === 'csv') {
-      downloadCSV('bank_history.csv', [headers, ...data]);
-    } else {
-      const doc = new jsPDF();
-      doc.text('Bank Transaction History', 14, 15);
-      autoTable(doc, {
-        startY: 25,
-        head: [headers],
-        body: data,
-        theme: 'striped',
-        headStyles: { fillColor: [41, 128, 185] }
-      });
-      doc.save('bank_history.pdf');
-    }
+  const purchaseTransactionsView = () => {
+    const filtered = filterTransactionsByDate(
+      purchaseTransactions.filter(tx => !selectedParty || tx.party === selectedParty),
+      purchaseFilterStart,
+      purchaseFilterEnd
+    );
+    return (
+      <TransactionTable
+        transactions={filtered}
+        onEdit={handleEditClick}
+        onSeeComment={setCommentTxModal}
+        onDelete={handleDeleteTransaction}
+      />
+    );
   };
 
-  const exportPDF = () => {
-    const from = new Date(exportStartDate);
-    const to = new Date(exportEndDate);
-    if (exportEndDate) to.setHours(23, 59, 59, 999);
-
-    const doc = new jsPDF();
-    doc.text('Velhal Bookkeeping Summary', 14, 15);
-
-    const txRows = allTransactions.filter(tx => {
-      if (!exportStartDate || !exportEndDate) return true;
-      const d = new Date(tx.date);
-      return d >= from && d <= to;
-    }).map(tx => [
-      formatDate(tx.date),
-      tx.party,
-      tx.type,
-      asNumber(tx.amount),
-      tx.method || '',
-      tx.billNumber || '',
-      tx.checkNumber || ''
-    ]);
-
-    autoTable(doc, {
-      startY: 20,
-      head: [['Date', 'Party', 'Type', 'Amount', 'Method', 'Bill No', 'Check No']],
-      body: txRows,
-      theme: 'striped',
-      headStyles: { fillColor: [41, 128, 185] }
-    });
-
-    doc.save('velhal_summary.pdf');
+  const paymentTransactionsView = () => {
+    const filtered = filterTransactionsByDate(
+      paymentTransactions.filter(tx => !selectedParty || tx.party === selectedParty),
+      paymentFilterStart,
+      paymentFilterEnd
+    );
+    return (
+      <TransactionTable
+        transactions={filtered}
+        onEdit={handleEditClick}
+        onSeeComment={setCommentTxModal}
+        onDelete={handleDeleteTransaction}
+      />
+    );
   };
 
-  const exportAllData = () => {
-    const from = new Date(exportStartDate);
-    const to = new Date(exportEndDate);
-    if (exportEndDate) to.setHours(23, 59, 59, 999);
+  const returnTransactionsView = () => {
+    const filtered = filterTransactionsByDate(
+      returnTransactions.filter(tx => !selectedParty || tx.party === selectedParty),
+      returnFilterStart,
+      returnFilterEnd
+    );
+    return (
+      <TransactionTable
+        transactions={filtered}
+        onEdit={handleEditClick}
+        onSeeComment={setCommentTxModal}
+        onDelete={handleDeleteTransaction}
+      />
+    );
+  };
 
-    const allTxRows = [['Date', 'Party', 'Type', 'Amount', 'GST', 'Method', 'Bill No', 'Check No', 'Comment', 'GST Applied']];
-    allTransactions.forEach(tx => {
-      const d = new Date(tx.date);
-      if (!exportStartDate || !exportEndDate || (d >= from && d <= to)) {
-        allTxRows.push([
-          formatDate(tx.date),
-          tx.party,
-          tx.type,
-          asNumber(tx.amount),
-          tx.gstAmount || '',
-          tx.method || '',
-          tx.billNumber || '',
-          tx.checkNumber || '',
-          tx.comment || '',
-          tx.type === 'purchase' ? (tx.hasGST !== false ? 'Yes' : 'No') : '-'
-        ]);
+  const bankLedgerView = () => {
+    const ledger = getBankLedger().filter(e => {
+      if (bankFilterStart && new Date(e.date) < new Date(bankFilterStart)) return false;
+      if (bankFilterEnd) {
+        const end = new Date(bankFilterEnd);
+        end.setHours(23,59,59,999);
+        if (new Date(e.date) > end) return false;
       }
+      return true;
     });
 
-    const partyRows = [['Business', 'Phone', 'Bank', 'Bank Name', 'Contact', 'Mobile']];
-    partiesInfo.forEach(p => partyRows.push([p.businessName, p.phoneNumber, p.bankNumber, p.bankName, p.contactName, p.contactMobile]));
-
-    const bankRows = [['Date', 'Party', 'Method', 'Check No.', 'Debit', 'Credit', 'Balance']];
-    getBankLedger().forEach(e => {
-      const d = new Date(e.date);
-      if (!exportStartDate || !exportEndDate || (d >= from && d <= to)) {
-        bankRows.push([
-          formatDate(e.date),
-          e.party,
-          e.method,
-          e.checkNumber || '-',
-          e.debit || '',
-          e.credit || '',
-          e.balance || ''
-        ]);
-      }
-    });
-
-    downloadCSV('transactions_filtered.csv', allTxRows);
-    downloadCSV('parties.csv', partyRows);
-    downloadCSV('bank_ledger_filtered.csv', bankRows);
+    return (
+      <div style={{ overflowX: 'auto' }}>
+        <table className='transaction-table'>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Party</th>
+              <th>Method</th>
+              <th>Check No</th>
+              <th>Debit</th>
+              <th>Credit</th>
+              <th>Balance</th>
+              <th>Delete</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ledger.length === 0 && (
+              <tr><td colSpan={8} style={{ textAlign: 'center', color: '#888' }}>No bank entries.</td></tr>
+            )}
+            {ledger.map((e, i) => (
+              <tr key={i}>
+                <td>{formatDate(e.date)}</td>
+                <td>{e.party || '-'}</td>
+                <td>{e.method}</td>
+                <td>{e.checkNumber}</td>
+                <td>{e.debit ? `₹${asNumber(e.debit).toFixed(2)}` : '-'}</td>
+                <td>{e.credit ? `₹${asNumber(e.credit).toFixed(2)}` : '-'}</td>
+                <td>₹{asNumber(e.balance).toFixed(2)}</td>
+                <td>
+                  <button onClick={() => handleDeleteBankEntry(e)} style={{ padding: '4px 6px', fontSize: '11px', color: 'white', background: '#dc3545', border: 'none', borderRadius: '3px' }}>
+                    Del
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
   };
 
-  // Filtered data for each view
-  const homeFilteredTransactions = filterTransactionsByDate(allTransactions, homeFilterStart, homeFilterEnd);
-  const purchaseFilteredTransactions = filterTransactionsByDate(
-    purchaseTransactions.filter(tx => !selectedParty || tx.party === selectedParty),
-    purchaseFilterStart,
-    purchaseFilterEnd
-  );
-  const paymentFilteredTransactions = filterTransactionsByDate(
-    paymentTransactions.filter(tx => !selectedParty || tx.party === selectedParty),
-    paymentFilterStart,
-    paymentFilterEnd
-  );
-  const returnFilteredTransactions = filterTransactionsByDate(
-    returnTransactions.filter(tx => !selectedParty || tx.party === selectedParty),
-    returnFilterStart,
-    returnFilterEnd
-  );
-  const balanceFilteredTransactions = filterTransactionsByDate(filteredTransactions, balanceFilterStart, balanceFilterEnd);
-  const bankFilteredLedger = filterTransactionsByDate(getBankLedger(), bankFilterStart, bankFilterEnd);
-  const salaryFilteredTransactions = filterTransactionsByDate(salaryTransactions, salaryFilterStart, salaryFilterEnd);
-
+  // Note: Replace the below with your actual return/JSX layout incorporating views and controls
   return (
-    <div className='home-page'>
-      <div className='sidebar'>
-        <h1 className='nrv-logo'>NRV</h1>
-        {['home', 'purchase', 'pay', 'return', 'balance', 'party', 'bank', 'employee', 'salary'].map(btn => (
-          <button key={btn} style={{ marginBottom: '15px' }} onClick={() => setView(btn)}>
-            {btn.charAt(0).toUpperCase() + btn.slice(1)}
-          </button>
-        ))}
-      </div>
+    <div style={{ padding: 16 }}>
+      <h2>Transactions</h2>
+      {currentTransactionsView()}
+      <h2>Purchases</h2>
+      {purchaseTransactionsView()}
+      <h2>Payments</h2>
+      {paymentTransactionsView()}
+      <h2>Returns</h2>
+      {returnTransactionsView()}
+      <h2>Bank Ledger</h2>
+      {bankLedgerView()}
 
-      <div className='content'>
-        {editingTransaction && (
-          <div className='modal'>
+      {commentTxModal && (
+        <CommentModal tx={commentTxModal} onClose={() => setCommentTxModal(null)} />
+      )}
+      {editingParty && (
+        <EditPartyModal
+          party={editingParty}
+          onClose={() => setEditingParty(null)}
+          onSave={handleSaveParty}
+        />
+      )}
+      {editingTransaction && (
+        <div className='modal'>
+          <div style={{ maxWidth: 500, minWidth: 400, margin: 'auto', border: '1px solid #bbb', borderRadius: 6, background: '#fff', padding: 20 }}>
             <h3>Edit Transaction</h3>
-            <label>Date: <input type='date' value={editForm.date || ''} onChange={e => setEditForm(f => ({ ...f, date: e.target.value }))} /></label>
-            <label>Party:
-              <select value={editForm.party || ''} onChange={e => setEditForm(f => ({ ...f, party: e.target.value }))}>
-                {partiesInfo.map((p, idx) => <option key={idx} value={p.businessName}>{p.businessName}</option>)}
-              </select>
-            </label>
-            <label>Type: {editingTransaction.type}</label>
-            <label>Amount{editingTransaction.type === 'purchase' ? ' (base amount)' : ''}: 
-              <input type='number' value={editForm.amount || ''} onChange={e => setEditForm(f => ({ ...f, amount: e.target.value }))} />
-            </label>
+            <div style={{ marginBottom: 10 }}>
+              <label>Amount (base before GST for purchase):</label>
+              <input
+                type='number'
+                value={editForm.amount || ''}
+                onChange={e => setEditForm({ ...editForm, amount: e.target.value })}
+                style={{ width: '100%', padding: 8, marginTop: 4 }}
+              />
+            </div>
+            <div style={{ marginBottom: 10 }}>
+              <label>Date:</label>
+              <input
+                type='date'
+                value={editForm.date ? editForm.date.substring(0,10) : ''}
+                onChange={e => setEditForm({ ...editForm, date: e.target.value })}
+                style={{ width: '100%', padding: 8, marginTop: 4 }}
+              />
+            </div>
             {editingTransaction.type === 'purchase' && (
-              <>
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  width: '100%',
-                  marginTop: '15px',
-                  marginBottom: '15px',
-                  padding: '15px',
-                  border: '1px solid #e0e0e0',
-                  borderRadius: '8px',
-                  backgroundColor: '#f9f9f9'
-                }}>
-                  <input 
-                    type='checkbox' 
-                    checked={editForm.hasGST} 
-                    onChange={e => setEditForm(f => ({ ...f, hasGST: e.target.checked }))} 
-                    style={{ 
-                      marginRight: '12px',
-                      width: '18px',
-                      height: '18px',
-                      cursor: 'pointer'
-                    }}
-                  />
-                  <span style={{ 
-                    fontSize: '16px',
-                    fontWeight: '500',
-                    color: '#333'
-                  }}>
-                    Apply GST (5%)
-                  </span>
-                </div>
-                {editForm.amount && !isNaN(asNumber(editForm.amount)) && (
-                  <div style={{ fontSize: '14px', color: '#666', marginTop: '5px' }}>
-                    {editForm.hasGST ? (
-                      <>
-                        <div>GST (5%): ₹{(asNumber(editForm.amount) * 0.05).toFixed(2)}</div>
-                        <div>Total with GST: ₹{Math.round(asNumber(editForm.amount) * 1.05)}</div>
-                      </>
-                    ) : (
-                      <div>Total (No GST): ₹{asNumber(editForm.amount).toFixed(2)}</div>
-                    )}
-                  </div>
-                )}
-              </>
-            )}
-            <label>Bill No: <input type='text' value={editForm.billNumber || ''} onChange={e => setEditForm(f => ({ ...f, billNumber: e.target.value }))} /></label>
-            {editingTransaction.type === 'payment' && (
-              <>
-                <label>Method: <input type='text' value={editForm.method || ''} onChange={e => setEditForm(f => ({ ...f, method: e.target.value }))} /></label>
-                {editForm.method === 'Check' && (
-                  <label>Check #: <input type='text' value={editForm.checkNumber || ''} onChange={e => setEditForm(f => ({ ...f, checkNumber: e.target.value }))} /></label>
-                )}
-              </>
-            )}
-            {editingTransaction.type === 'return' && (
-              <label>Comment: <textarea value={editForm.comment || ''} onChange={e => setEditForm(f => ({ ...f, comment: e.target.value }))} /></label>
-            )}
-            <div style={{ marginTop: 8 }}>
-              <button onClick={handleEditSave}>Save</button>
-              <button onClick={handleEditCancel}>Cancel</button>
-            </div>
-          </div>
-        )}
-
-        {/* Employee Modals */}
-        {(showAddEmployee || editingEmployee) && (
-          <div className='modal'>
-            <h3>{editingEmployee ? 'Edit Employee' : 'Add New Employee'}</h3>
-            <div style={{ marginBottom: 15 }}>
-              <label>Employee Name:</label>
-              <input 
-                type='text' 
-                value={employeeForm.name} 
-                onChange={e => setEmployeeForm({...employeeForm, name: e.target.value})}
-                placeholder="Enter employee name"
-                style={{ width: '100%', padding: '8px', marginTop: '5px' }}
-              />
-            </div>
-            <div style={{ marginBottom: 15 }}>
-              <label>Basic Salary (Optional):</label>
-              <input 
-                type='number' 
-                value={employeeForm.basicSalary} 
-                onChange={e => setEmployeeForm({...employeeForm, basicSalary: e.target.value})}
-                placeholder="Enter basic salary"
-                style={{ width: '100%', padding: '8px', marginTop: '5px' }}
-              />
-            </div>
-            <div style={{ display: 'flex', gap: '10px', marginBottom: 15 }}>
-              <div style={{ flex: 1 }}>
-                <label>Salary Period Start (Day of Month):</label>
-                <input 
-                  type='number' 
-                  min="1" 
-                  max="31"
-                  value={employeeForm.salaryPeriodStart} 
-                  onChange={e => setEmployeeForm({...employeeForm, salaryPeriodStart: e.target.value})}
-                  placeholder="1"
-                  style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+              <div style={{ marginBottom: 10 }}>
+                <label>GST Applied:</label>
+                <input
+                  type='checkbox'
+                  checked={editForm.hasGST}
+                  onChange={e => setEditForm({ ...editForm, hasGST: e.target.checked })}
+                  style={{ marginLeft: 8 }}
                 />
               </div>
-              <div style={{ flex: 1 }}>
-                <label>Salary Period End (Day of Month):</label>
-                <input 
-                  type='number' 
-                  min="1" 
-                  max="31"
-                  value={employeeForm.salaryPeriodEnd} 
-                  onChange={e => setEmployeeForm({...employeeForm, salaryPeriodEnd: e.target.value})}
-                  placeholder="30"
-                  style={{ width: '100%', padding: '8px', marginTop: '5px' }}
-                />
-              </div>
-            </div>
-            <div style={{ marginTop: 20 }}>
-              {editingEmployee ? (
-                <>
-                  <button onClick={handleUpdateEmployee} style={{ marginRight: 10, padding: '8px 16px', background: '#28a745', color: 'white', border: 'none', borderRadius: '4px' }}>Update Employee</button>
-                  <button onClick={() => { setEditingEmployee(null); clearEmployeeForm(); }} style={{ padding: '8px 16px', background: '#6c757d', color: 'white', border: 'none', borderRadius: '4px' }}>Cancel</button>
-                </>
-              ) : (
-                <>
-                  <button onClick={handleAddEmployee} style={{ marginRight: 10, padding: '8px 16px', background: '#28a745', color: 'white', border: 'none', borderRadius: '4px' }}>Add Employee</button>
-                  <button onClick={() => { setShowAddEmployee(false); clearEmployeeForm(); }} style={{ padding: '8px 16px', background: '#6c757d', color: 'white', border: 'none', borderRadius: '4px' }}>Cancel</button>
-                </>
-              )}
-            </div>
-          </div>
-        )}
-
-        {settingSalaryFor && (
-          <div className='modal'>
-            <h3>Salary Setup for {settingSalaryFor.name}</h3>
-            <div style={{ marginBottom: 15 }}>
-              <label>Basic Salary:</label>
-              <input 
-                type='number' 
-                value={employeeForm.basicSalary} 
-                onChange={e => setEmployeeForm({...employeeForm, basicSalary: e.target.value})}
-                placeholder="Enter basic salary"
-                style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+            )}
+            <div style={{ marginBottom: 10 }}>
+              <label>Bill Number:</label>
+              <input
+                type='text'
+                value={editForm.billNumber || ''}
+                onChange={e => setEditForm({ ...editForm, billNumber: e.target.value })}
+                style={{ width: '100%', padding: 8, marginTop: 4 }}
               />
             </div>
-            <div style={{ display: 'flex', gap: '10px', marginBottom: 15 }}>
-              <div style={{ flex: 1 }}>
-                <label>Salary Period Start (Day):</label>
-                <input 
-                  type='number' 
-                  min="1" 
-                  max="31"
-                  value={employeeForm.salaryPeriodStart} 
-                  onChange={e => setEmployeeForm({...employeeForm, salaryPeriodStart: e.target.value})}
-                  style={{ width: '100%', padding: '8px', marginTop: '5px' }}
-                />
-              </div>
-              <div style={{ flex: 1 }}>
-                <label>Salary Period End (Day):</label>
-                <input 
-                  type='number' 
-                  min="1" 
-                  max="31"
-                  value={employeeForm.salaryPeriodEnd} 
-                  onChange={e => setEmployeeForm({...employeeForm, salaryPeriodEnd: e.target.value})}
-                  style={{ width: '100%', padding: '8px', marginTop: '5px' }}
-                />
-              </div>
-            </div>
-            <div style={{ marginTop: 20 }}>
-              <button onClick={handleSaveSalarySetup} style={{ marginRight: 10, padding: '8px 16px', background: '#28a745', color: 'white', border: 'none', borderRadius: '4px' }}>Save Setup</button>
-              <button onClick={() => { setSettingSalaryFor(null); clearEmployeeForm(); }} style={{ padding: '8px 16px', background: '#6c757d', color: 'white', border: 'none', borderRadius: '4px' }}>Cancel</button>
-            </div>
-          </div>
-        )}
-
-        {viewingEmployee && (
-          <div className='modal'>
-            <div style={{ maxWidth: 600, minWidth: 500, margin: 'auto', border: '1px solid #bbb', borderRadius: 6, background: '#fff', padding: 20 }}>
-              <div style={{ textAlign: 'center', marginBottom: 20 }}>
-                <h1 style={{ fontSize: '36px', margin: '10px 0', color: '#333' }}>
-                  {viewingEmployee.name.toUpperCase()}
-                </h1>
-                <div style={{ fontSize: '24px', color: '#007bff', fontWeight: 'bold' }}>
-                  Remaining This Month: ₹{calculateRemainingSalary(viewingEmployee, salaryTransactions).toFixed(2)}
-                </div>
-              </div>
-              
-              <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '8px', marginBottom: '15px' }}>
-                <h4 style={{ marginTop: 0 }}>Employee Details</h4>
-                <p><strong>Basic Salary:</strong> ₹{viewingEmployee.basicSalary ? asNumber(viewingEmployee.basicSalary).toFixed(2) : 'Not Set'}</p>
-                <p><strong>Salary Period:</strong> {viewingEmployee.salaryPeriodStart && viewingEmployee.salaryPeriodEnd 
-                  ? `${viewingEmployee.salaryPeriodStart} to ${viewingEmployee.salaryPeriodEnd} of each month`
-                  : 'Not Set'
-                }</p>
-                <p><strong>Last Updated:</strong> {viewingEmployee.salaryLastUpdated ? formatDate(viewingEmployee.salaryLastUpdated) : '-'}</p>
-              </div>
-
-              <div style={{ marginBottom: '15px' }}>
-                <h4>Recent Salary Payments</h4>
-                <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                  {salaryTransactions
-                    .filter(sal => sal.employeeName === viewingEmployee.name)
-                    .sort((a, b) => new Date(b.date) - new Date(a.date))
-                    .slice(0, 5)
-                    .map((sal, idx) => (
-                      <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px', background: idx % 2 === 0 ? '#f8f9fa' : 'white', borderRadius: '4px', marginBottom: '4px' }}>
-                        <span>{formatDate(sal.date)}</span>
-                        <span>₹{asNumber(sal.amount).toFixed(2)}</span>
-                      </div>
-                    ))
-                  }
-                  {salaryTransactions.filter(sal => sal.employeeName === viewingEmployee.name).length === 0 && (
-                    <p style={{ color: '#888' }}>No salary payments yet</p>
-                  )}
-                </div>
-              </div>
-
-              <div style={{ textAlign: 'center' }}>
-                <button onClick={() => setViewingEmployee(null)} style={{ padding: '10px 20px', background: '#007bff', color: 'white', border: 'none', borderRadius: '4px' }}>Close</button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {commentTxModal && <CommentModal tx={commentTxModal} onClose={() => setCommentTxModal(null)} />}
-
-        {editingParty && (
-          <EditPartyModal 
-            party={editingParty} 
-            onClose={() => setEditingParty(null)} 
-            onSave={handleSaveParty}
-          />
-        )}
-
-        {view === 'home' && (
-          <>
-            <h1>NANDKUMAR RAMACHANDRA VELHAL</h1>
-            <h3>Total Owed to All Parties: ₹{(totalOwed || 0).toFixed(2)}</h3>
-            <h4>
-              All Transactions <br />
-              <span style={{ fontWeight: 'normal' }}>
-                Total GST on Purchases: ₹
-                {allTransactions.filter(tx => tx.type === 'purchase' && tx.hasGST !== false).reduce((s, tx) => s + (Number(tx.gstAmount) || 0), 0).toFixed(2)}
-              </span>
-            </h4>
-            
-            <div style={{ marginBottom: '15px' }}>
-              <label>From: <input type='date' value={homeFilterStart} onChange={e => setHomeFilterStart(e.target.value)} /></label>
-              <label style={{ marginLeft: 12 }}>To: <input type='date' value={homeFilterEnd} onChange={e => setHomeFilterEnd(e.target.value)} /></label>
-              <button onClick={() => exportAllData()} style={{ marginLeft: 12 }}>Export All (CSV)</button>
-              <button onClick={exportPDF} style={{ marginLeft: 6 }}>Export All (PDF)</button>
-            </div>
-
-            <TransactionTable
-              transactions={homeFilteredTransactions}
-              onEdit={handleEditClick}
-              onSeeComment={setCommentTxModal}
-              onDelete={handleDeleteTransaction}
-            />
-          </>
-        )}
-
-        {view === 'employee' && (
-          <div className='form-container'>
-            <h2>Employee Management</h2>
-            <button 
-              className='addPurchase-button' 
-              onClick={() => setShowAddEmployee(true)} 
-              style={{ marginBottom: '20px' }}
-            >
-              Add New Employee
-            </button>
-            
-            <EmployeeTable 
-              employees={employees} 
-              onEditEmployee={handleEditEmployee}
-              onSetupSalary={handleSetupSalary}
-              onViewEmployee={handleViewEmployee}
-            />
-          </div>
-        )}
-
-        {view === 'purchase' && (
-          <div className='form-container'>
-            <h2>Purchase Entry</h2>
-            <select value={selectedParty} onChange={e => setSelectedParty(e.target.value)}>
-              <option value=''>Select Party</option>
-              {partiesInfo.map((p, i) => <option key={i} value={p.businessName}>{p.businessName}</option>)}
-            </select>
-            <input type='date' value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} />
-            <input type='text' placeholder='Bill No' value={form.billNumber} onChange={e => setForm({ ...form, billNumber: e.target.value })} />
-            <input type='number' placeholder='Amount' value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} />
-            
-            <div style={{
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              width: '100%',
-              marginTop: '15px',
-              marginBottom: '15px',
-              padding: '15px',
-              border: '1px solid #e0e0e0',
-              borderRadius: '8px',
-              backgroundColor: '#f9f9f9'
-            }}>
-              <input 
-                type='checkbox' 
-                checked={form.hasGST} 
-                onChange={e => setForm({ ...form, hasGST: e.target.checked })} 
-                style={{ 
-                  marginRight: '12px',
-                  width: '18px',
-                  height: '18px',
-                  cursor: 'pointer'
-                }}
+            <div style={{ marginBottom: 10 }}>
+              <label>Comment:</label>
+              <textarea
+                value={editForm.comment || ''}
+                onChange={e => setEditForm({ ...editForm, comment: e.target.value })}
+                rows={3}
+                style={{ width: '100%', padding: 8, marginTop: 4 }}
               />
-              <span style={{ 
-                fontSize: '16px',
-                fontWeight: '500',
-                color: '#333'
-              }}>
-                Apply GST (5%)
-              </span>
             </div>
-            
-            <button className='addPurchase-button' onClick={handleAddPurchase}>Add Purchase</button>
-            <button className='clearForm-button' onClick={clearFormFields} style={{ marginLeft: 12 }}>Clear</button>
-            {form.amount && !isNaN(asNumber(form.amount)) && (
-              <div style={{ marginTop: 10 }}>
-                {form.hasGST ? (
-                  <>
-                    <p>GST (5%): ₹{(asNumber(form.amount) * 0.05).toFixed(2)}</p>
-                    <p>Total with GST: ₹{Math.round(asNumber(form.amount) * 1.05)}</p>
-                  </>
-                ) : (
-                  <p>Total (No GST): ₹{asNumber(form.amount).toFixed(2)}</p>
-                )}
-              </div>
-            )}
-            
-            <h3 style={{ marginTop: '30px' }}>Purchase History</h3>
-            <div style={{ marginBottom: '15px' }}>
-              <label>From: <input type='date' value={purchaseFilterStart} onChange={e => setPurchaseFilterStart(e.target.value)} /></label>
-              <label style={{ marginLeft: 12 }}>To: <input type='date' value={purchaseFilterEnd} onChange={e => setPurchaseFilterEnd(e.target.value)} /></label>
-              <button onClick={() => exportPurchaseHistory('csv')} style={{ marginLeft: 12 }}>Export CSV</button>
-              <button onClick={() => exportPurchaseHistory('pdf')} style={{ marginLeft: 6 }}>Export PDF</button>
-            </div>
-            <TransactionTable
-              transactions={purchaseFilteredTransactions}
-              onEdit={handleEditClick}
-              onSeeComment={setCommentTxModal}
-              onDelete={handleDeleteTransaction}
-            />
-          </div>
-        )}
-
-        {view === 'pay' && (
-          <div className='form-container'>
-            <h2>Payment</h2>
-            <select value={selectedParty} onChange={e => setSelectedParty(e.target.value)}>
-              <option value=''>Select Party</option>
-              {partiesInfo.map((p, i) => <option key={i} value={p.businessName}>{p.businessName}</option>)}
-            </select>
-            <input type='date' value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} />
-            <input type='number' placeholder='Amount' value={form.payment} onChange={e => setForm({ ...form, payment: e.target.value })} />
-            <select value={form.paymentMethod} onChange={e => setForm({ ...form, paymentMethod: e.target.value })}>
-              <option value=''>Select Payment Method</option>
-              <option value='Cash'>Cash</option>
-              <option value='NEFT'>NEFT</option>
-              <option value='Check'>Check</option>
-            </select>
-            {form.paymentMethod === 'Check' && (
-              <input type='text' placeholder='Enter Check Number' value={form.checkNumber || ''} onChange={e => setForm({ ...form, checkNumber: e.target.value })} />
-            )}
-            <button className='addPurchase-button' onClick={handleAddPayment}>Add Payment</button>
-            <button className='clearForm-button' onClick={clearFormFields} style={{ marginLeft: 12 }}>Clear</button>
-            
-            <h3 style={{ marginTop: '30px' }}>Payment History</h3>
-            <div style={{ marginBottom: '15px' }}>
-              <label>From: <input type='date' value={paymentFilterStart} onChange={e => setPaymentFilterStart(e.target.value)} /></label>
-              <label style={{ marginLeft: 12 }}>To: <input type='date' value={paymentFilterEnd} onChange={e => setPaymentFilterEnd(e.target.value)} /></label>
-              <button onClick={() => exportPaymentHistory('csv')} style={{ marginLeft: 12 }}>Export CSV</button>
-              <button onClick={() => exportPaymentHistory('pdf')} style={{ marginLeft: 6 }}>Export PDF</button>
-            </div>
-            <TransactionTable
-              transactions={paymentFilteredTransactions}
-              onEdit={handleEditClick}
-              onSeeComment={setCommentTxModal}
-              onDelete={handleDeleteTransaction}
-            />
-          </div>
-        )}
-
-        {view === 'return' && (
-          <div className='form-container'>
-            <h2>Return</h2>
-            <select value={selectedParty} onChange={e => setSelectedParty(e.target.value)}>
-              <option value=''>Select Party</option>
-              {partiesInfo.map((p, i) => <option key={i} value={p.businessName}>{p.businessName}</option>)}
-            </select>
-            <input type='number' placeholder='Return Amount' value={form.returnAmount} onChange={e => setForm({ ...form, returnAmount: e.target.value })} />
-            <input type='text' placeholder='Bill No' value={form.billNumber} onChange={e => setForm({ ...form, billNumber: e.target.value })} />
-            <input type='date' value={form.returnDate} onChange={e => setForm({ ...form, returnDate: e.target.value })} />
-            <textarea placeholder='Why was the product returned?' value={form.comment} onChange={e => setForm({ ...form, comment: e.target.value })} style={{ width: '100%', minHeight: 36, marginTop: 8 }} />
-            <button className='addPurchase-button' onClick={handleAddReturn}>Add Return</button>
-            <button className='clearForm-button' onClick={clearFormFields} style={{ marginLeft: 12 }}>Clear</button>
-            
-            <h3 style={{ marginTop: '30px' }}>Return History</h3>
-            <div style={{ marginBottom: '15px' }}>
-              <label>From: <input type='date' value={returnFilterStart} onChange={e => setReturnFilterStart(e.target.value)} /></label>
-              <label style={{ marginLeft: 12 }}>To: <input type='date' value={returnFilterEnd} onChange={e => setReturnFilterEnd(e.target.value)} /></label>
-              <button onClick={() => exportReturnHistory('csv')} style={{ marginLeft: 12 }}>Export CSV</button>
-              <button onClick={() => exportReturnHistory('pdf')} style={{ marginLeft: 6 }}>Export PDF</button>
-            </div>
-            <TransactionTable
-              transactions={returnFilteredTransactions}
-              onEdit={handleEditClick}
-              onSeeComment={setCommentTxModal}
-              onDelete={handleDeleteTransaction}
-            />
-          </div>
-        )}
-
-        {view === 'balance' && (
-          <div className='form-container'>
-            <h2>Balance for: {selectedParty || 'None selected'}</h2>
-            <select value={selectedParty} onChange={e => setSelectedParty(e.target.value)}>
-              <option value=''>Select Party</option>
-              {partiesInfo.map((p, i) => <option key={i} value={p.businessName}>{p.businessName}</option>)}
-            </select>
-            <p>Total Owed: ₹{(totalOwed || 0).toFixed(2)}</p>
-            <p>
-              Total GST on Purchases: ₹
-              {filteredTransactions.filter(tx => tx.type === 'purchase' && tx.hasGST !== false).reduce((s, tx) => s + (Number(tx.gstAmount) || 0), 0).toFixed(2)}
-            </p>
-            
-            <h3 style={{ marginTop: '30px' }}>Balance History</h3>
-            <div style={{ marginBottom: '15px' }}>
-              <label>From: <input type='date' value={balanceFilterStart} onChange={e => setBalanceFilterStart(e.target.value)} /></label>
-              <label style={{ marginLeft: 12 }}>To: <input type='date' value={balanceFilterEnd} onChange={e => setBalanceFilterEnd(e.target.value)} /></label>
-              <button onClick={() => exportBalanceHistory('csv')} style={{ marginLeft: 12 }}>Export CSV</button>
-              <button onClick={() => exportBalanceHistory('pdf')} style={{ marginLeft: 6 }}>Export PDF</button>
-            </div>
-            <TransactionTable
-              transactions={balanceFilteredTransactions}
-              onEdit={handleEditClick}
-              onSeeComment={setCommentTxModal}
-              onDelete={handleDeleteTransaction}
-            />
-          </div>
-        )}
-
-        {view === 'party' && (
-          <div className='form-container'>
-            <h2>All Parties</h2>
-            <PartyInfoTable parties={partiesInfo} onEditParty={handleEditParty} />
-            <button className='addPurchase-button' onClick={() => setShowPartyForm(s => !s)} style={{ margin: '18px 0 16px 0' }}>
-              {showPartyForm ? 'Cancel' : 'Add New Party'}
-            </button>
-            {showPartyForm && (
-              <div className='party-form'>
-                <input placeholder='Business' value={partyInput.businessName} onChange={e => setPartyInput({ ...partyInput, businessName: e.target.value })} />
-                <input placeholder='Phone' value={partyInput.phoneNumber} onChange={e => setPartyInput({ ...partyInput, phoneNumber: e.target.value })} />
-                <input placeholder='Bank' value={partyInput.bankNumber} onChange={e => setPartyInput({ ...partyInput, bankNumber: e.target.value })} />
-                <input placeholder='Bank Name' value={partyInput.bankName} onChange={e => setPartyInput({ ...partyInput, bankName: e.target.value })} />
-                <input placeholder='Contact' value={partyInput.contactName} onChange={e => setPartyInput({ ...partyInput, contactName: e.target.value })} />
-                <input placeholder='Mobile' value={partyInput.contactMobile} onChange={e => setPartyInput({ ...partyInput, contactMobile: e.target.value })} />
-                <button onClick={handleAddParty} className='addPurchase-button'>Save Party</button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {view === 'bank' && (
-          <div className='form-container'>
-            <h2>Bank Balance: ₹{(bankBalance || 0).toFixed(2)}</h2>
-            <input type='number' value={depositAmount} onChange={e => setDepositAmount(e.target.value)} placeholder='Enter deposit amount' />
-            <input type='date' value={depositDate} onChange={e => setDepositDate(e.target.value)} placeholder='Enter deposit date' />
-            <button onClick={handleDeposit} className='addPurchase-button'>Deposit</button>
-
-            <h2 style={{ marginTop: '20px' }}>Bank Transaction History</h2>
-            <div style={{ marginBottom: '15px' }}>
-              <label>From: <input type='date' value={bankFilterStart} onChange={e => setBankFilterStart(e.target.value)} /></label>
-              <label style={{ marginLeft: 12 }}>To: <input type='date' value={bankFilterEnd} onChange={e => setBankFilterEnd(e.target.value)} /></label>
-              <button onClick={() => exportBankHistory('csv')} style={{ marginLeft: 12 }}>Export CSV</button>
-              <button onClick={() => exportBankHistory('pdf')} style={{ marginLeft: 6 }}>Export PDF</button>
-            </div>
-            <div style={{ overflowX: 'auto' }}>
-              <table className='transaction-table' style={{ fontSize: '13px' }}>
-                <thead>
-                  <tr>
-                    <th style={{ padding: '8px 6px' }}>Date</th>
-                    <th style={{ padding: '8px 6px' }}>Party</th>
-                    <th style={{ padding: '8px 6px' }}>Method</th>
-                    <th style={{ padding: '8px 6px' }}>Check No.</th>
-                    <th style={{ padding: '8px 6px' }}>Debit</th>
-                    <th style={{ padding: '8px 6px' }}>Credit</th>
-                    <th style={{ padding: '8px 6px' }}>Balance</th>
-                    <th style={{ padding: '8px 6px' }}>Delete</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {bankFilteredLedger.map((e, idx) => (
-                    <tr key={idx}>
-                      <td style={{ padding: '6px', fontSize: '12px' }}>{formatDate(e.date)}</td>
-                      <td style={{ padding: '6px', fontSize: '12px' }}>{e.party}</td>
-                      <td style={{ padding: '6px', fontSize: '12px' }}>{e.method}</td>
-                      <td style={{ padding: '6px', fontSize: '12px' }}>{e.checkNumber || '-'}</td>
-                      <td style={{ padding: '6px', fontSize: '12px', color: e.debit ? 'red' : 'black' }}>{e.debit ? `₹${e.debit.toFixed(2)}` : '-'}</td>
-                      <td style={{ padding: '6px', fontSize: '12px', color: e.credit ? 'green' : 'black' }}>{e.credit ? `₹${e.credit.toFixed(2)}` : '-'}</td>
-                      <td style={{ padding: '6px', fontSize: '12px' }}>₹{e.balance.toFixed(2)}</td>
-                      <td style={{ padding: '6px' }}>
-                        {e.type === 'deposit' && e.source === 'bankDeposits' && e.isPaymentDeduction !== true
-                          ? <button onClick={() => handleDeleteBankEntry(e)} style={{ padding: '4px 6px', fontSize: '11px', color: 'white', background: '#dc3545', border: 'none', borderRadius: '3px' }}>Del</button>
-                          : ''}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={handleEditSave} style={{ padding: '8px 16px', background: '#28a745', color: 'white', border: 'none', borderRadius: 4 }}>
+                Save
+              </button>
+              <button onClick={handleEditCancel} style={{ padding: '8px 16px', background: '#6c757d', color: 'white', border: 'none', borderRadius: 4 }}>
+                Cancel
+              </button>
             </div>
           </div>
-        )}
-
-        {view === 'salary' && (
-          <div className='form-container'>
-            <h2>Salary Payment</h2>
-            
-            {/* Employee Selection with Big Name Display */}
-            <select 
-              value={selectedEmployee} 
-              onChange={e => setSelectedEmployee(e.target.value)}
-              style={{ marginBottom: '20px', padding: '10px', width: '100%', fontSize: '16px' }}
-            >
-              <option value=''>Select Employee</option>
-              {employees.map((emp, i) => (
-                <option key={i} value={emp.name}>{emp.name}</option>
-              ))}
-            </select>
-
-            {selectedEmployee && (
-              <div style={{ 
-                textAlign: 'center', 
-                marginBottom: '20px', 
-                padding: '20px', 
-                background: '#f8f9fa', 
-                borderRadius: '8px',
-                border: '2px solid #007bff'
-              }}>
-                <h1 style={{ 
-                  fontSize: '48px', 
-                  margin: '10px 0', 
-                  color: '#007bff',
-                  textTransform: 'uppercase',
-                  letterSpacing: '2px'
-                }}>
-                  {selectedEmployee}
-                </h1>
-                <div style={{ fontSize: '24px', color: '#28a745', fontWeight: 'bold' }}>
-                  {(() => {
-                    const emp = employees.find(e => e.name === selectedEmployee);
-                    return emp ? `Remaining This Month: ₹${calculateRemainingSalary(emp, salaryTransactions).toFixed(2)}` : 'Employee not found';
-                  })()}
-                </div>
-                {(() => {
-                  const emp = employees.find(e => e.name === selectedEmployee);
-                  return emp && emp.basicSalary ? (
-                    <div style={{ fontSize: '18px', color: '#666', marginTop: '10px' }}>
-                      Basic Salary: ₹{asNumber(emp.basicSalary).toFixed(2)} | 
-                      Period: {emp.salaryPeriodStart}-{emp.salaryPeriodEnd} of month
-                    </div>
-                  ) : (
-                    <div style={{ fontSize: '16px', color: '#dc3545', marginTop: '10px' }}>
-                      ⚠️ Salary not configured for this employee
-                    </div>
-                  );
-                })()}
-              </div>
-            )}
-            
-            <input 
-              type='date' 
-              value={form.salaryDate} 
-              onChange={e => setForm({ ...form, salaryDate: e.target.value })} 
-              placeholder='Select Date'
-              style={{ marginBottom: '10px' }}
-            />
-            <input 
-              type='number' 
-              placeholder='Salary Amount' 
-              value={form.salaryAmount} 
-              onChange={e => setForm({ ...form, salaryAmount: e.target.value })}
-              style={{ marginBottom: '10px' }}
-            />
-            
-            <div style={{ marginBottom: '20px' }}>
-              <button className='addPurchase-button' onClick={handleAddSalary}>Pay Salary</button>
-              <button className='clearForm-button' onClick={() => { clearFormFields(); setSelectedEmployee(''); }} style={{ marginLeft: 12 }}>Clear</button>
-            </div>
-
-            <h3 style={{ marginTop: '30px' }}>Salary History</h3>
-            <div style={{ marginBottom: '15px' }}>
-              <label>From: <input type='date' value={salaryFilterStart} onChange={e => setSalaryFilterStart(e.target.value)} /></label>
-              <label style={{ marginLeft: 12 }}>To: <input type='date' value={salaryFilterEnd} onChange={e => setSalaryFilterEnd(e.target.value)} /></label>
-              <button onClick={() => exportSalaryHistory('csv')} style={{ marginLeft: 12 }}>Export CSV</button>
-              <button onClick={() => exportSalaryHistory('pdf')} style={{ marginLeft: 6 }}>Export PDF</button>
-            </div>
-            <SalaryTable salaries={salaryFilteredTransactions} />
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };
