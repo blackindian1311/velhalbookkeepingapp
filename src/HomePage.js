@@ -37,29 +37,21 @@ const calculateRemainingSalary = (employee, salaryTransactions) => {
   if (!employee.salaryPeriodStart || !employee.salaryPeriodEnd || !employee.basicSalary) {
     return employee.basicSalary || 0;
   }
-  
   const now = new Date();
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
-  
-  // Get current salary period dates
   const periodStart = new Date(currentYear, currentMonth, employee.salaryPeriodStart);
   const periodEnd = new Date(currentYear, currentMonth, employee.salaryPeriodEnd);
-  
-  // If period end is before start, it means it goes to next month
   if (periodEnd < periodStart) {
     periodEnd.setMonth(periodEnd.getMonth() + 1);
   }
-  
-  // Calculate total paid in current period
   const paidInPeriod = salaryTransactions
-    .filter(tx => 
+    .filter(tx =>
       tx.employeeName === employee.name &&
       new Date(tx.date) >= periodStart &&
       new Date(tx.date) <= periodEnd
     )
     .reduce((total, tx) => total + asNumber(tx.amount), 0);
-  
   return Math.max(0, asNumber(employee.basicSalary) - paidInPeriod);
 };
 
@@ -431,7 +423,7 @@ const HomePage = () => {
     return t;
   }, 0);
 
-  // REMOVED salary from bank ledger - keep bank separate from salary
+  // Bank ledger (salary excluded)
   const getBankLedger = () => {
     let ledger = [];
     bankDeposits.forEach(d => {
@@ -494,7 +486,6 @@ const HomePage = () => {
       alert('Please enter employee name.');
       return;
     }
-    
     try {
       const employeeData = {
         name: employeeForm.name.trim(),
@@ -504,7 +495,6 @@ const HomePage = () => {
         salaryPeriodEnd: employeeForm.salaryPeriodEnd || null,
         salaryLastUpdated: employeeForm.basicSalary ? new Date().toISOString() : null
       };
-      
       await addDoc(collection(db, 'employees'), employeeData);
       clearEmployeeForm();
       setShowAddEmployee(false);
@@ -530,7 +520,6 @@ const HomePage = () => {
       alert('Please enter employee name.');
       return;
     }
-    
     try {
       const updatedData = {
         name: employeeForm.name.trim(),
@@ -539,7 +528,6 @@ const HomePage = () => {
         salaryPeriodEnd: employeeForm.salaryPeriodEnd || editingEmployee.salaryPeriodEnd,
         salaryLastUpdated: employeeForm.basicSalary !== String(editingEmployee.basicSalary) ? new Date().toISOString() : editingEmployee.salaryLastUpdated
       };
-      
       await updateDoc(doc(db, 'employees', editingEmployee.id), updatedData);
       setEditingEmployee(null);
       clearEmployeeForm();
@@ -565,7 +553,6 @@ const HomePage = () => {
       alert('Please fill all salary setup fields.');
       return;
     }
-    
     try {
       const updatedData = {
         basicSalary: asNumber(employeeForm.basicSalary),
@@ -573,7 +560,6 @@ const HomePage = () => {
         salaryPeriodEnd: parseInt(employeeForm.salaryPeriodEnd),
         salaryLastUpdated: new Date().toISOString()
       };
-      
       await updateDoc(doc(db, 'employees', settingSalaryFor.id), updatedData);
       setSettingSalaryFor(null);
       clearEmployeeForm();
@@ -666,7 +652,6 @@ const HomePage = () => {
     if (!amount || !billNumber || !date || !selectedParty) { alert('Fill all purchase fields.'); return; }
     const baseAmt = asNumber(amount);
     if (baseAmt <= 0) { alert('Enter valid amount'); return; }
-    
     let finalAmount, gstAmount;
     if (hasGST) {
       gstAmount = baseAmt * 0.05;
@@ -675,15 +660,14 @@ const HomePage = () => {
       gstAmount = 0;
       finalAmount = baseAmt;
     }
-    
     await addDoc(collection(db, 'purchases'), {
-      type: 'purchase', 
-      amount: finalAmount, 
-      gstAmount: gstAmount, 
+      type: 'purchase',
+      amount: finalAmount,
+      gstAmount: gstAmount,
       baseAmount: baseAmt,
       hasGST: hasGST,
-      party: selectedParty, 
-      billNumber, 
+      party: selectedParty,
+      billNumber,
       date
     });
     clearFormFields();
@@ -693,21 +677,18 @@ const HomePage = () => {
   const handleAddPayment = async () => {
     const { payment, paymentMethod, date, checkNumber } = form;
     const amountToPay = asNumber(payment);
-    
-    if (!payment || !paymentMethod || !date || !selectedParty) { 
-      alert('Fill all payment fields.'); 
-      return; 
+    if (!payment || !paymentMethod || !date || !selectedParty) {
+      alert('Fill all payment fields.');
+      return;
     }
-    
     await addDoc(collection(db, 'payments'), {
-      type: 'payment', 
-      amount: amountToPay, 
+      type: 'payment',
+      amount: amountToPay,
       method: paymentMethod,
-      party: selectedParty, 
-      date, 
+      party: selectedParty,
+      date,
       checkNumber: paymentMethod === 'Check' ? checkNumber : null
     });
-
     if (paymentMethod !== 'Cash') {
       await setDoc(doc(db, 'meta', 'bank'), { balance: bankBalance - amountToPay });
       await addDoc(collection(db, 'bankDeposits'), {
@@ -718,7 +699,6 @@ const HomePage = () => {
         paymentMethod
       });
     }
-    
     clearFormFields();
   };
 
@@ -736,20 +716,18 @@ const HomePage = () => {
   // UPDATED: Salary handler - NO bank connection, but with employee selection
   const handleAddSalary = async () => {
     const { salaryDate, salaryAmount } = form;
-    if (!salaryDate || !salaryAmount || !selectedEmployee) { 
-      alert('Please fill all salary fields and select an employee.'); 
-      return; 
+    if (!salaryDate || !salaryAmount || !selectedEmployee) {
+      alert('Please fill all salary fields and select an employee.');
+      return;
     }
     const amount = asNumber(salaryAmount);
     if (amount <= 0) { alert('Enter valid salary amount'); return; }
-
     await addDoc(collection(db, 'salaries'), {
       type: 'salary',
       amount: amount,
       employeeName: selectedEmployee,
       date: salaryDate
     });
-
     clearFormFields();
     setSelectedEmployee('');
     alert('Salary payment recorded successfully.');
@@ -786,14 +764,11 @@ const HomePage = () => {
   const handleEditSave = async () => {
     const tx = editingTransaction;
     if (!editForm.amount || !editForm.date) { alert('Fill all required fields.'); return; }
-    
     const coll = tx.type === 'purchase' ? 'purchases' : tx.type === 'payment' ? 'payments' : 'returns';
     let newData = { ...tx, ...editForm };
-    
     if (tx.type === 'purchase') {
       const baseAmt = asNumber(editForm.amount);
       let gstAmount, finalAmount;
-      
       if (editForm.hasGST) {
         gstAmount = baseAmt * 0.05;
         finalAmount = Math.round(baseAmt + gstAmount);
@@ -801,7 +776,6 @@ const HomePage = () => {
         gstAmount = 0;
         finalAmount = baseAmt;
       }
-      
       newData = {
         ...newData,
         baseAmount: baseAmt,
@@ -812,33 +786,29 @@ const HomePage = () => {
     } else {
       newData.amount = asNumber(editForm.amount);
     }
-    
     newData.billNumber = editForm.billNumber || null;
     newData.comment = editForm.comment || '';
-    
     await updateDoc(doc(db, coll, tx.id), newData);
-    setEditingTransaction(null); 
+    setEditingTransaction(null);
     setEditForm({});
   };
 
-  const handleEditCancel = () => { 
-    setEditingTransaction(null); 
-    setEditForm({}); 
+  const handleEditCancel = () => {
+    setEditingTransaction(null);
+    setEditForm({});
   };
 
-  // Helper to display base amount for purchases
-  const displayBaseAmount = (tx) => {
+  // Show base amount (before GST) only in the Amount cell for purchases
+  const getDisplayAmount = (tx) => {
     if (tx.type === 'purchase') {
       if (tx.baseAmount !== undefined && tx.baseAmount !== null) {
         return asNumber(tx.baseAmount);
       }
-      // Fallback: derive base from total amount if GST was applied
       if (tx.hasGST !== false) {
         return asNumber(tx.amount) / 1.05;
       }
       return asNumber(tx.amount);
     }
-    // For payments and returns, amount is already base
     return asNumber(tx.amount);
   };
 
@@ -862,8 +832,8 @@ const HomePage = () => {
 
     return (
       <div style={{ overflowX: 'auto', width: '100%' }}>
-        <table className='transaction-table' style={{ 
-          width: '100%', 
+        <table className='transaction-table' style={{
+          width: '100%',
           minWidth: '1200px',
           fontSize: '13px',
           borderCollapse: 'collapse'
@@ -891,16 +861,12 @@ const HomePage = () => {
               const debit = tx.type === 'purchase' ? asNumber(tx.amount) : null;
               const credit = (tx.type === 'payment' || tx.type === 'return') ? asNumber(tx.amount) : null;
               const gst = tx.type === 'purchase'
-                ? (tx.hasGST !== false 
-                   ? '₹' + (tx.gstAmount !== undefined
-                     ? Number(tx.gstAmount).toFixed(2)
-                     : ((asNumber(tx.amount) / 1.05) * 0.05).toFixed(2))
-                   : '₹0.00')
+                ? (tx.hasGST !== false
+                  ? '₹' + (tx.gstAmount !== undefined
+                    ? Number(tx.gstAmount).toFixed(2)
+                    : ((asNumber(tx.amount) / 1.05) * 0.05).toFixed(2))
+                  : '₹0.00')
                 : '-';
-
-              // Display base amount in Amount column
-              const displayAmount = displayBaseAmount(tx);
-
               return (
                 <tr key={tx.id || i}>
                   <td style={{ padding: '6px 4px', fontSize: '12px' }}>{formatDate(tx.date)}</td>
@@ -911,7 +877,8 @@ const HomePage = () => {
                   <td style={{ padding: '6px 4px', fontSize: '12px' }}>{tx.billNumber || '-'}</td>
                   <td style={{ padding: '6px 4px', fontSize: '12px' }}>{tx.method || '-'}</td>
                   <td style={{ padding: '6px 4px', fontSize: '12px' }}>{tx.method === 'Check' && tx.checkNumber ? tx.checkNumber : '-'}</td>
-                  <td style={{ padding: '6px 4px', fontSize: '12px' }}>₹{asNumber(displayAmount).toFixed(2)}</td>
+                  {/* Amount shows base for purchases, unchanged for others */}
+                  <td style={{ padding: '6px 4px', fontSize: '12px' }}>₹{getDisplayAmount(tx).toFixed(2)}</td>
                   <td style={{ padding: '6px 4px', fontSize: '12px' }}>{gst}</td>
                   <td style={{ padding: '6px 4px', fontSize: '12px' }}>
                     {debit !== null ? `₹${asNumber(debit).toFixed(2)}` : '-'}
@@ -919,7 +886,7 @@ const HomePage = () => {
                   <td style={{ padding: '6px 4px', fontSize: '12px' }}>{credit !== null ? `₹${asNumber(credit).toFixed(2)}` : '-'}</td>
                   <td style={{ padding: '6px 4px', fontSize: '12px' }}>₹{runningBalances[tx.id] !== undefined ? asNumber(runningBalances[tx.id]).toFixed(2) : '-'}</td>
                   <td style={{ padding: '6px 4px' }}>
-                    <button 
+                    <button
                       onClick={() => onEdit && onEdit(tx)}
                       style={{ padding: '4px 6px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '3px', background: '#f8f9fa' }}
                     >
@@ -927,19 +894,19 @@ const HomePage = () => {
                     </button>
                   </td>
                   <td style={{ padding: '6px 4px' }}>
-                    {tx.comment ? 
-                      <button 
+                    {tx.comment ?
+                      <button
                         onClick={() => onSeeComment && onSeeComment(tx)}
                         style={{ padding: '4px 6px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '3px', background: '#e7f3ff' }}
                       >
                         Comment
-                      </button> 
+                      </button>
                       : ''
                     }
                   </td>
                   <td style={{ padding: '6px 4px' }}>
-                    <button 
-                      onClick={() => onDelete && onDelete(tx)} 
+                    <button
+                      onClick={() => onDelete && onDelete(tx)}
                       style={{ padding: '4px 6px', fontSize: '11px', color: 'white', background: '#dc3545', border: 'none', borderRadius: '3px' }}
                     >
                       Del
@@ -954,14 +921,13 @@ const HomePage = () => {
     );
   };
 
-  // UPDATED: Simplified Salary Table - NO edit/delete columns
+  // Simplified Salary Table - unchanged
   const SalaryTable = ({ salaries }) => {
     const sorted = salaries.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
-
     return (
       <div style={{ overflowX: 'auto', width: '100%' }}>
-        <table className='transaction-table' style={{ 
-          width: '100%', 
+        <table className='transaction-table' style={{
+          width: '100%',
           minWidth: '400px',
           fontSize: '13px',
           borderCollapse: 'collapse'
@@ -1001,29 +967,24 @@ const HomePage = () => {
     URL.revokeObjectURL(url);
   };
 
-  // Export functions for each page
+  // Export functions (unchanged output headers; purchase still exported as total unless you want base there too)
   const exportPurchaseHistory = (format) => {
     const filtered = filterTransactionsByDate(
       purchaseTransactions.filter(tx => !selectedParty || tx.party === selectedParty),
       purchaseFilterStart,
       purchaseFilterEnd
     );
-    const headers = ['Date', 'Party', 'Base Amount', 'GST Amount', 'Bill No', 'GST Applied', 'Comment'];
-    const data = filtered.map(tx => {
-      const base = tx.baseAmount != null ? asNumber(tx.baseAmount)
-        : (tx.hasGST !== false ? asNumber(tx.amount) / 1.05 : asNumber(tx.amount));
-      const gstAmt = tx.gstAmount != null ? asNumber(tx.gstAmount)
-        : (tx.hasGST !== false ? base * 0.05 : 0);
-      return [
-        formatDate(tx.date),
-        tx.party,
-        `₹${base.toFixed(2)}`,
-        `₹${gstAmt.toFixed(2)}`,
-        tx.billNumber || '-',
-        tx.hasGST !== false ? 'Yes' : 'No',
-        tx.comment || '-'
-      ];
-    });
+    const headers = ['Date', 'Party', 'Amount', 'GST', 'Bill No', 'GST Applied', 'Comment'];
+    const data = filtered.map(tx => [
+      formatDate(tx.date),
+      tx.party,
+      // Keeping original export as total amount to avoid changing your reports UI/format
+      `₹${asNumber(tx.amount).toFixed(2)}`,
+      `₹${(tx.gstAmount || 0).toFixed(2)}`,
+      tx.billNumber || '-',
+      tx.hasGST !== false ? 'Yes' : 'No',
+      tx.comment || '-'
+    ]);
     if (format === 'csv') {
       downloadCSV('purchase_history.csv', [headers, ...data]);
     } else {
@@ -1101,7 +1062,7 @@ const HomePage = () => {
     }
   };
 
-  // Views rendering below (simplified; plug into your UI as before)
+  // Basic views (unchanged)
   const currentTransactionsView = () => {
     const base = [...purchaseTransactions, ...paymentTransactions, ...returnTransactions];
     const filtered = filterTransactionsByDate(
@@ -1177,7 +1138,6 @@ const HomePage = () => {
       }
       return true;
     });
-
     return (
       <div style={{ overflowX: 'auto' }}>
         <table className='transaction-table'>
@@ -1219,7 +1179,6 @@ const HomePage = () => {
     );
   };
 
-  // Note: Replace the below with your actual return/JSX layout incorporating views and controls
   return (
     <div style={{ padding: 16 }}>
       <h2>Transactions</h2>
