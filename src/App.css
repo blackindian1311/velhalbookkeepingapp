@@ -14,6 +14,8 @@ body {
   margin-left: 160px; /* Width of your sidebar */
   padding: 0 10px;
   box-sizing: border-box;
+  position: relative;
+  z-index: 1;
 }
 
 .sidebar {
@@ -24,26 +26,27 @@ body {
   height: 100vh;
   background-color: rgb(238, 170, 130);
   color: white;
-  padding: 20px;
+  padding: 20px 10px;
   overflow-y: auto;
-  z-index: 1000;
+  z-index: 1001; /* above watermark and content */
   transition: none; /* ✅ disables animation */
 }
 
+/* Ensure scroll works and bars hidden */
 .sidebar {
   overflow-y: auto; /* Enable vertical scrolling */
 }
-
 .sidebar::-webkit-scrollbar {
   display: none; /* Hide the scrollbar for WebKit browsers, including Safari */
 }
-
 .sidebar {
   -ms-overflow-style: none; /* Hide scrollbar for Internet Explorer and Edge */
   scrollbar-width: none;    /* Hide scrollbar for Firefox */
 }
 
-.sidebar button {
+/* Sidebar buttons including Employees */
+.sidebar button,
+.sidebar .employees-btn {
   display: block;
   width: 100%;
   padding: 35px 10px;
@@ -56,23 +59,27 @@ body {
   margin-bottom: 10px;
   border-radius: 0; /* Make square */
   transition: background-color 0.3s ease, transform 0.2s ease;
+  position: relative;
+  z-index: 1;
 }
 
-.sidebar button:hover {
+.sidebar button:hover,
+.sidebar .employees-btn:hover {
   background-color: #2e3d52;
   transform: scale(1.05);
 }
 
-.sidebar button.active {
+.sidebar button.active,
+.sidebar .employees-btn.active {
   background-color: #555;
 }
 
 .content {
   flex-grow: 1;
   padding: 20px;
-  ;
 }
 
+/* Headings */
 h2 {
   margin-top: 0;
   text-decoration-color: #1e2a38;
@@ -90,7 +97,6 @@ h2 {
   align-items: center;
   min-height: 10vh;
   font-size: 1.4rem;
-  ;
 }
 
 .total-price-text {
@@ -316,6 +322,7 @@ h6 {
   margin-bottom: 40px;
 }
 
+/* Watermark logo */
 .nrv-logo {
   font-size: 10vw; /* Responsive size that works across devices */
   font-weight: bold;
@@ -326,7 +333,7 @@ h6 {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  z-index: 0;
+  z-index: 0; /* keep behind sidebar and content */
   opacity: 0.07;
   pointer-events: none;
   user-select: none;
@@ -350,7 +357,7 @@ h6 {
 
 @media screen and (min-width: 1024px) {
   .nrv-logo {
-    font-size: 60px;
+  font-size: 60px;
   }
 }
 
@@ -382,7 +389,6 @@ h6 {
   display: block;
   margin-left: auto;
   margin-right: auto;
-  position: center;
 }
 
 h7 {
@@ -398,6 +404,7 @@ h1 {
   box-sizing: border-box;
 }
 
+/* Mobile adjustments */
 @media screen and (max-width: 768px) {
   .home-page {
     margin-left: 0;
@@ -408,9 +415,11 @@ h1 {
     position: relative;
     width: 100%;
     height: auto;
+    z-index: 1001;
   }
 
-  .sidebar button {
+  .sidebar button,
+  .sidebar .employees-btn {
     padding: 15px 5px;
     font-size: 16px;
   }
@@ -441,16 +450,17 @@ h1 {
   }
 }
 
+/* Background watermark behind everything except sidebar/content */
 body::before {
   content: "NRV";
   position: fixed;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%) rotate(-30deg);
-  font-size: 280px; /* 🔸 Increase size */
-  color: rgba(0, 0, 0, 0.08); /* 🔸 Make it darker */
+  font-size: 280px;
+  color: rgba(0, 0, 0, 0.08);
   font-weight: 900;
-  z-index: -1;
+  z-index: -1; /* keep far behind */
   white-space: nowrap;
   pointer-events: none;
   user-select: none;
