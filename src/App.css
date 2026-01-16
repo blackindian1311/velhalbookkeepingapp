@@ -22,7 +22,7 @@ body {
   left: 0; /* ✅ no more sliding */
   width: 160px;
   height: 100vh;
-  background-color:#2e3d52;
+  background-color:rgb(238, 170, 130);
   color: white;
   padding: 20px;
   overflow-y: auto;
@@ -47,7 +47,7 @@ body {
   display: block;
   width: 100%;
   padding: 35px 10px;
-  background-color: #0084ff;
+  background-color:#2e3d52;
   color: white;
   border: none;
   cursor: pointer;
