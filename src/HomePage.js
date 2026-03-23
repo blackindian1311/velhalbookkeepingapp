@@ -135,7 +135,7 @@ function CommentModal({ tx, onClose }) {
           {tx.billNumber && <div><strong>Bill No:</strong> {tx.billNumber}</div>}
           {tx.method && <div><strong>Method:</strong> {tx.method}</div>}
           {tx.checkNumber && <div><strong>Check No:</strong> {tx.checkNumber}</div>}
-          {tx.paymentBank && <div><strong>Bank Used:</strong> {tx.paymentBank === 'bank2' ? 'Bank 2' : 'Bank 1'}</div>}
+          {tx.paymentBank && <div><strong>Bank Used:</strong> {tx.paymentBank === 'bank2' ? 'Bharat' : 'Nagarik'}</div>}
           {tx.employeeName && <div><strong>Employee:</strong> {tx.employeeName}</div>}
           <div><strong>GST Applied:</strong> {tx.hasGST !== false ? 'Yes' : 'No'}</div>
         </div>
@@ -220,7 +220,6 @@ const HomePage = () => {
   const [partyInput, setPartyInput] = useState({ businessName: '', phoneNumber: '', bankNumber: '', contactName: '', contactMobile: '', bankName: '' });
   const [selectedParty, setSelectedParty] = useState('');
 
-  // ✅ CHANGE 1: added paymentBank: 'bank1' to form state
   const [form, setForm] = useState({
     amount: '', billNumber: '', date: '', payment: '',
     paymentMethod: '', returnAmount: '', returnDate: '',
@@ -270,7 +269,6 @@ const HomePage = () => {
     return t;
   }, 0);
 
-  // ✅ CHANGE 2: getBankLedger only shows NEFT/Check where paymentBank is bank1 or unset (old data)
   const getBankLedger = () => {
     let ledger = [];
     bankDeposits.forEach(d => {
@@ -298,7 +296,6 @@ const HomePage = () => {
     return asc.map(e => { if (e.credit) bal += e.credit; if (e.debit) bal -= e.debit; return { ...e, balance: bal }; }).reverse();
   };
 
-  // ✅ CHANGE 3: getBank2Ledger now also includes NEFT/Check payments made from Bank 2
   const getBank2Ledger = () => {
     let ledger = [];
     bank2Deposits.forEach(d => {
@@ -326,7 +323,6 @@ const HomePage = () => {
     return asc.map(e => { if (e.credit) bal += e.credit; if (e.debit) bal -= e.debit; return { ...e, balance: bal }; }).reverse();
   };
 
-  // ✅ CHANGE 4: clearFormFields resets paymentBank too
   const clearFormFields = () => setForm({
     amount: '', billNumber: '', date: '', payment: '',
     paymentMethod: '', returnAmount: '', returnDate: '',
@@ -389,7 +385,6 @@ const HomePage = () => {
 
   const handleViewEmployee = (employee) => setViewingEmployee(employee);
 
-  // ✅ CHANGE 5: handleDeleteTransaction now reverses the correct bank (bank1 or bank2) based on tx.paymentBank
   const handleDeleteTransaction = async (tx) => {
     const msg =
       tx.type === 'purchase' ? `Delete purchase ₹${asNumber(tx.amount).toFixed(2)} for ${tx.party}?` :
@@ -426,26 +421,26 @@ const HomePage = () => {
 
   const handleDeleteBankEntry = async (entry) => {
     if (entry.type !== 'deposit' || entry.source !== 'bankDeposits' || entry.isPaymentDeduction === true) {
-      alert('Only manual bank entries can be deleted here.'); return;
+      alert('Only manual Nagarik bank entries can be deleted here.'); return;
     }
-    if (!window.confirm('Delete this bank entry and adjust bank balance?')) return;
+    if (!window.confirm('Delete this Nagarik bank entry and adjust balance?')) return;
     try {
       const delta = entry.credit ? -entry.credit : entry.debit ? entry.debit : 0;
       await setDoc(doc(db, 'meta', 'bank'), { balance: asNumber(bankBalance) + delta });
       await deleteDoc(doc(db, 'bankDeposits', entry.id));
-      alert('Bank entry deleted.');
+      alert('Nagarik bank entry deleted.');
     } catch (e) { alert('Failed to delete bank entry.'); }
   };
 
   const handleDeleteBank2Entry = async (entry) => {
-    if (entry.source !== 'bank2Deposits') { alert('Only Bank 2 manual entries can be deleted here.'); return; }
-    if (!window.confirm('Delete this Bank 2 entry and adjust balance?')) return;
+    if (entry.source !== 'bank2Deposits') { alert('Only Bharat bank manual entries can be deleted here.'); return; }
+    if (!window.confirm('Delete this Bharat bank entry and adjust balance?')) return;
     try {
       const delta = entry.credit ? -entry.credit : entry.debit ? entry.debit : 0;
       await setDoc(doc(db, 'meta', 'bank2'), { balance: asNumber(bank2Balance) + delta });
       await deleteDoc(doc(db, 'bank2Deposits', entry.id));
-      alert('Bank 2 entry deleted.');
-    } catch (e) { alert('Failed to delete Bank 2 entry.'); }
+      alert('Bharat bank entry deleted.');
+    } catch (e) { alert('Failed to delete Bharat bank entry.'); }
   };
 
   const handleEditParty = (party) => setEditingParty(party);
@@ -475,7 +470,6 @@ const HomePage = () => {
     clearFormFields();
   };
 
-  // ✅ CHANGE 6: handleAddPayment stores paymentBank and deducts from correct bank
   const handleAddPayment = async () => {
     const { payment, paymentMethod, date, checkNumber, paymentBank } = form;
     const amountToPay = asNumber(payment);
@@ -615,8 +609,8 @@ const HomePage = () => {
                   <td style={{ padding: '6px 4px', fontSize: '12px' }}>
                     {tx.type === 'payment' && tx.method && tx.method !== 'Cash'
                       ? (tx.paymentBank === 'bank2'
-                        ? <span style={{ background: '#28a745', color: 'white', padding: '2px 5px', borderRadius: '3px', fontSize: '11px' }}>B2</span>
-                        : <span style={{ background: '#007bff', color: 'white', padding: '2px 5px', borderRadius: '3px', fontSize: '11px' }}>B1</span>)
+                        ? <span style={{ background: '#28a745', color: 'white', padding: '2px 5px', borderRadius: '3px', fontSize: '11px' }}>Bharat</span>
+                        : <span style={{ background: '#007bff', color: 'white', padding: '2px 5px', borderRadius: '3px', fontSize: '11px' }}>Nagarik</span>)
                       : '-'}
                   </td>
                   <td style={{ padding: '6px 4px', fontSize: '12px' }}>{tx.method === 'Check' && tx.checkNumber ? tx.checkNumber : '-'}</td>
@@ -679,7 +673,7 @@ const HomePage = () => {
   const exportPaymentHistory = (format) => {
     const filtered = filterTransactionsByDate(paymentTransactions.filter(tx => !selectedParty || tx.party === selectedParty), paymentFilterStart, paymentFilterEnd);
     const headers = ['Date', 'Party', 'Amount', 'Method', 'Bank', 'Check No', 'Comment'];
-    const data = filtered.map(tx => [formatDate(tx.date), tx.party, `₹${asNumber(tx.amount).toFixed(2)}`, tx.method || '-', tx.paymentBank === 'bank2' ? 'Bank 2' : (tx.method && tx.method !== 'Cash' ? 'Bank 1' : '-'), tx.checkNumber || '-', tx.comment || '-']);
+    const data = filtered.map(tx => [formatDate(tx.date), tx.party, `₹${asNumber(tx.amount).toFixed(2)}`, tx.method || '-', tx.paymentBank === 'bank2' ? 'Bharat' : (tx.method && tx.method !== 'Cash' ? 'Nagarik' : '-'), tx.checkNumber || '-', tx.comment || '-']);
     if (format === 'csv') { downloadCSV('payment_history.csv', [headers, ...data]); }
     else { const d = new jsPDF(); d.text('Payment History Report', 14, 15); autoTable(d, { startY: 25, head: [headers], body: data, theme: 'striped', headStyles: { fillColor: [41, 128, 185] } }); d.save('payment_history.pdf'); }
   };
@@ -711,11 +705,11 @@ const HomePage = () => {
   const exportBankHistory = (format) => {
     const isBank2 = selectedBank === 'bank2';
     const ledgerData = isBank2 ? filterTransactionsByDate(getBank2Ledger(), bank2FilterStart, bank2FilterEnd) : filterTransactionsByDate(getBankLedger(), bankFilterStart, bankFilterEnd);
-    const bankLabel = isBank2 ? 'Bank 2' : 'Bank 1';
+    const bankLabel = isBank2 ? 'Bharat' : 'Nagarik';
     const headers = ['Date', 'Party', 'Method', 'Check No', 'Debit', 'Credit', 'Balance'];
     const data = ledgerData.map(entry => [formatDate(entry.date), entry.party, entry.method, entry.checkNumber || '-', entry.debit ? `₹${entry.debit.toFixed(2)}` : '-', entry.credit ? `₹${entry.credit.toFixed(2)}` : '-', `₹${entry.balance.toFixed(2)}`]);
-    if (format === 'csv') { downloadCSV(`${isBank2 ? 'bank2' : 'bank1'}_history.csv`, [headers, ...data]); }
-    else { const d = new jsPDF(); d.text(`${bankLabel} Transaction History`, 14, 15); autoTable(d, { startY: 25, head: [headers], body: data, theme: 'striped', headStyles: { fillColor: [41, 128, 185] } }); d.save(`${isBank2 ? 'bank2' : 'bank1'}_history.pdf`); }
+    if (format === 'csv') { downloadCSV(`${isBank2 ? 'bharat' : 'nagarik'}_history.csv`, [headers, ...data]); }
+    else { const d = new jsPDF(); d.text(`${bankLabel} Bank Transaction History`, 14, 15); autoTable(d, { startY: 25, head: [headers], body: data, theme: 'striped', headStyles: { fillColor: [41, 128, 185] } }); d.save(`${isBank2 ? 'bharat' : 'nagarik'}_history.pdf`); }
   };
 
   const exportPDF = () => {
@@ -734,16 +728,16 @@ const HomePage = () => {
     allTransactions.forEach(tx => {
       const dt = new Date(tx.date);
       if (!exportStartDate || !exportEndDate || (dt >= from && dt <= to)) {
-        allTxRows.push([formatDate(tx.date), tx.party, tx.type, asNumber(tx.amount), tx.gstAmount || '', tx.method || '', tx.paymentBank === 'bank2' ? 'Bank 2' : (tx.method && tx.method !== 'Cash' ? 'Bank 1' : '-'), tx.billNumber || '', tx.checkNumber || '', tx.comment || '', tx.type === 'purchase' ? (tx.hasGST !== false ? 'Yes' : 'No') : '-']);
+        allTxRows.push([formatDate(tx.date), tx.party, tx.type, asNumber(tx.amount), tx.gstAmount || '', tx.method || '', tx.paymentBank === 'bank2' ? 'Bharat' : (tx.method && tx.method !== 'Cash' ? 'Nagarik' : '-'), tx.billNumber || '', tx.checkNumber || '', tx.comment || '', tx.type === 'purchase' ? (tx.hasGST !== false ? 'Yes' : 'No') : '-']);
       }
     });
     const partyRows = [['Business', 'Phone', 'Bank', 'Bank Name', 'Contact', 'Mobile']];
     partiesInfo.forEach(p => partyRows.push([p.businessName, p.phoneNumber, p.bankNumber, p.bankName, p.contactName, p.contactMobile]));
-    const bankRows = [['Date', 'Party', 'Method', 'Check No.', 'Debit', 'Credit', 'Balance']];
-    getBankLedger().forEach(e => { const dt = new Date(e.date); if (!exportStartDate || !exportEndDate || (dt >= from && dt <= to)) { bankRows.push([formatDate(e.date), e.party, e.method, e.checkNumber || '-', e.debit || '', e.credit || '', e.balance || '']); } });
+    const nagarikRows = [['Date', 'Party', 'Method', 'Check No.', 'Debit', 'Credit', 'Balance']];
+    getBankLedger().forEach(e => { const dt = new Date(e.date); if (!exportStartDate || !exportEndDate || (dt >= from && dt <= to)) { nagarikRows.push([formatDate(e.date), e.party, e.method, e.checkNumber || '-', e.debit || '', e.credit || '', e.balance || '']); } });
     downloadCSV('transactions_filtered.csv', allTxRows);
     downloadCSV('parties.csv', partyRows);
-    downloadCSV('bank1_ledger_filtered.csv', bankRows);
+    downloadCSV('nagarik_ledger_filtered.csv', nagarikRows);
   };
 
   const homeFilteredTransactions = filterTransactionsByDate(allTransactions, homeFilterStart, homeFilterEnd);
@@ -949,7 +943,6 @@ const HomePage = () => {
             {form.paymentMethod === 'Check' && (
               <input type='text' placeholder='Enter Check Number' value={form.checkNumber || ''} onChange={e => setForm({ ...form, checkNumber: e.target.value })} />
             )}
-            {/* ✅ CHANGE 7: Bank selector shown for NEFT and Check */}
             {(form.paymentMethod === 'NEFT' || form.paymentMethod === 'Check') && (
               <div style={{ marginTop: '12px', marginBottom: '8px', padding: '14px', border: '1px solid #e0e0e0', borderRadius: '8px', background: '#f9f9f9' }}>
                 <div style={{ fontWeight: '600', marginBottom: '10px', fontSize: '14px', color: '#333' }}>Pay from which bank?</div>
@@ -958,13 +951,13 @@ const HomePage = () => {
                     onClick={() => setForm({ ...form, paymentBank: 'bank1' })}
                     style={{ flex: 1, padding: '10px', fontWeight: 'bold', borderRadius: '6px', border: '2px solid #007bff', cursor: 'pointer', background: form.paymentBank === 'bank1' ? '#007bff' : '#fff', color: form.paymentBank === 'bank1' ? '#fff' : '#007bff', transition: 'all 0.2s' }}
                   >
-                    Bank 1<br /><span style={{ fontSize: '12px', fontWeight: 'normal' }}>₹{(bankBalance || 0).toFixed(2)}</span>
+                    Nagarik<br /><span style={{ fontSize: '12px', fontWeight: 'normal' }}>₹{(bankBalance || 0).toFixed(2)}</span>
                   </button>
                   <button
                     onClick={() => setForm({ ...form, paymentBank: 'bank2' })}
                     style={{ flex: 1, padding: '10px', fontWeight: 'bold', borderRadius: '6px', border: '2px solid #28a745', cursor: 'pointer', background: form.paymentBank === 'bank2' ? '#28a745' : '#fff', color: form.paymentBank === 'bank2' ? '#fff' : '#28a745', transition: 'all 0.2s' }}
                   >
-                    Bank 2<br /><span style={{ fontSize: '12px', fontWeight: 'normal' }}>₹{(bank2Balance || 0).toFixed(2)}</span>
+                    Bharat<br /><span style={{ fontSize: '12px', fontWeight: 'normal' }}>₹{(bank2Balance || 0).toFixed(2)}</span>
                   </button>
                 </div>
               </div>
@@ -1049,17 +1042,17 @@ const HomePage = () => {
           <div className='form-container'>
             <h2>Bank</h2>
             <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
-              <button onClick={() => setSelectedBank('bank1')} style={{ padding: '12px 32px', fontSize: '16px', fontWeight: 'bold', borderRadius: '8px', border: '2px solid #007bff', cursor: 'pointer', background: selectedBank === 'bank1' ? '#007bff' : '#fff', color: selectedBank === 'bank1' ? '#fff' : '#007bff', transition: 'all 0.2s' }}>Bank 1</button>
-              <button onClick={() => setSelectedBank('bank2')} style={{ padding: '12px 32px', fontSize: '16px', fontWeight: 'bold', borderRadius: '8px', border: '2px solid #28a745', cursor: 'pointer', background: selectedBank === 'bank2' ? '#28a745' : '#fff', color: selectedBank === 'bank2' ? '#fff' : '#28a745', transition: 'all 0.2s' }}>Bank 2</button>
+              <button onClick={() => setSelectedBank('bank1')} style={{ padding: '12px 32px', fontSize: '16px', fontWeight: 'bold', borderRadius: '8px', border: '2px solid #007bff', cursor: 'pointer', background: selectedBank === 'bank1' ? '#007bff' : '#fff', color: selectedBank === 'bank1' ? '#fff' : '#007bff', transition: 'all 0.2s' }}>Nagarik</button>
+              <button onClick={() => setSelectedBank('bank2')} style={{ padding: '12px 32px', fontSize: '16px', fontWeight: 'bold', borderRadius: '8px', border: '2px solid #28a745', cursor: 'pointer', background: selectedBank === 'bank2' ? '#28a745' : '#fff', color: selectedBank === 'bank2' ? '#fff' : '#28a745', transition: 'all 0.2s' }}>Bharat</button>
             </div>
 
             {selectedBank === 'bank1' && (
               <>
-                <h2>Bank 1 Balance: ₹{(bankBalance || 0).toFixed(2)}</h2>
+                <h2>Nagarik Balance: ₹{(bankBalance || 0).toFixed(2)}</h2>
                 <input type='number' value={depositAmount} onChange={e => setDepositAmount(e.target.value)} placeholder='Enter deposit amount' />
                 <input type='date' value={depositDate} onChange={e => setDepositDate(e.target.value)} />
                 <button onClick={handleDeposit} className='addPurchase-button'>Deposit</button>
-                <h3 style={{ marginTop: '20px' }}>Bank 1 Transaction History</h3>
+                <h3 style={{ marginTop: '20px' }}>Nagarik Transaction History</h3>
                 <div style={{ marginBottom: '15px' }}>
                   <label>From: <input type='date' value={bankFilterStart} onChange={e => setBankFilterStart(e.target.value)} /></label>
                   <label style={{ marginLeft: 12 }}>To: <input type='date' value={bankFilterEnd} onChange={e => setBankFilterEnd(e.target.value)} /></label>
@@ -1090,7 +1083,6 @@ const HomePage = () => {
                           <td style={{ padding: '6px', fontSize: '12px', color: e.debit ? 'red' : 'black' }}>{e.debit ? `₹${e.debit.toFixed(2)}` : '-'}</td>
                           <td style={{ padding: '6px', fontSize: '12px', color: e.credit ? 'green' : 'black' }}>{e.credit ? `₹${e.credit.toFixed(2)}` : '-'}</td>
                           <td style={{ padding: '6px', fontSize: '12px' }}>₹{e.balance.toFixed(2)}</td>
-                          {/* ✅ Bank 1 delete fix: Del works for both Deposit and NEFT/Check entries */}
                           <td style={{ padding: '6px' }}>
                             {e.type === 'deposit' && e.source === 'bankDeposits' && e.isPaymentDeduction !== true
                               ? <button onClick={() => handleDeleteBankEntry(e)} style={{ padding: '4px 6px', fontSize: '11px', color: 'white', background: '#dc3545', border: 'none', borderRadius: '3px' }}>Del</button>
@@ -1108,11 +1100,11 @@ const HomePage = () => {
 
             {selectedBank === 'bank2' && (
               <>
-                <h2>Bank 2 Balance: ₹{(bank2Balance || 0).toFixed(2)}</h2>
+                <h2>Bharat Balance: ₹{(bank2Balance || 0).toFixed(2)}</h2>
                 <input type='number' value={bank2DepositAmount} onChange={e => setBank2DepositAmount(e.target.value)} placeholder='Enter deposit amount' />
                 <input type='date' value={bank2DepositDate} onChange={e => setBank2DepositDate(e.target.value)} />
                 <button onClick={handleBank2Deposit} className='addPurchase-button'>Deposit</button>
-                <h3 style={{ marginTop: '20px' }}>Bank 2 Transaction History</h3>
+                <h3 style={{ marginTop: '20px' }}>Bharat Transaction History</h3>
                 <div style={{ marginBottom: '15px' }}>
                   <label>From: <input type='date' value={bank2FilterStart} onChange={e => setBank2FilterStart(e.target.value)} /></label>
                   <label style={{ marginLeft: 12 }}>To: <input type='date' value={bank2FilterEnd} onChange={e => setBank2FilterEnd(e.target.value)} /></label>
@@ -1134,7 +1126,7 @@ const HomePage = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {bank2FilteredLedger.length === 0 && <tr><td colSpan={8} style={{ textAlign: 'center', color: '#888', padding: '20px' }}>No Bank 2 transactions yet.</td></tr>}
+                      {bank2FilteredLedger.length === 0 && <tr><td colSpan={8} style={{ textAlign: 'center', color: '#888', padding: '20px' }}>No Bharat bank transactions yet.</td></tr>}
                       {bank2FilteredLedger.map((e, idx) => (
                         <tr key={idx}>
                           <td style={{ padding: '6px', fontSize: '12px' }}>{formatDate(e.date)}</td>
@@ -1144,7 +1136,6 @@ const HomePage = () => {
                           <td style={{ padding: '6px', fontSize: '12px', color: e.debit ? 'red' : 'black' }}>{e.debit ? `₹${e.debit.toFixed(2)}` : '-'}</td>
                           <td style={{ padding: '6px', fontSize: '12px', color: e.credit ? 'green' : 'black' }}>{e.credit ? `₹${e.credit.toFixed(2)}` : '-'}</td>
                           <td style={{ padding: '6px', fontSize: '12px' }}>₹{e.balance.toFixed(2)}</td>
-                          {/* ✅ Bank 2 delete fix: Del works for both Deposit and NEFT/Check entries */}
                           <td style={{ padding: '6px' }}>
                             {e.type === 'deposit' && e.source === 'bank2Deposits' && e.isPaymentDeduction !== true
                               ? <button onClick={() => handleDeleteBank2Entry(e)} style={{ padding: '4px 6px', fontSize: '11px', color: 'white', background: '#dc3545', border: 'none', borderRadius: '3px' }}>Del</button>
