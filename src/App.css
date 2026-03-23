@@ -84,11 +84,11 @@
 
 /* Dealer name column */
 .index-table .index-dealer-name {
-  font-weight: 600;                 /* ← DEALER NAME FONT WEIGHT (change here) */
+  font-weight: 800;                 /* ← DEALER NAME FONT WEIGHT (change here) */
   color: #1e2a38;                   /* ← DEALER NAME TEXT COLOR (change here) */
-  font-size: 14px;                  /* ← DEALER NAME FONT SIZE (change here) */
+  font-size: 18px;                  /* ← DEALER NAME FONT SIZE (change here) */
   cursor: pointer;
-  text-decoration: underline;
+  text-decoration: none;
 }
 
 .index-table .index-dealer-name:hover {
