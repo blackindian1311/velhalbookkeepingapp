@@ -885,29 +885,30 @@ const HomePage = () => {
             <h4>All Transactions <br /><span style={{ fontWeight: 'normal' }}>Total GST on Purchases: ₹{allTransactions.filter(tx => tx.type === 'purchase' && tx.hasGST !== false).reduce((s, tx) => s + (Number(tx.gstAmount) || 0), 0).toFixed(2)}</span></h4>
 
             {/* ── INDEX TABLE ── */}
-            <div style={{ marginBottom: '24px' }}>
-              <h3 style={{ textAlign: 'center', letterSpacing: '2px', color: '#c0392b', marginBottom: '8px' }}>INDEX</h3>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', border: '1px solid #bbb' }}>
+            <div className="index-table-wrapper">
+              <h3 className="index-table-title">INDEX</h3>
+              <div className="index-table-container">
+                <table className="index-table">
                   <thead>
-                    <tr style={{ background: '#f0f0f0' }}>
-                      <th style={{ border: '1px solid #bbb', padding: '7px 10px', textAlign: 'center', width: '50px' }}>SR NO</th>
-                      <th style={{ border: '1px solid #bbb', padding: '7px 10px', textAlign: 'left' }}>NAME OF DEALER</th>
-                      <th style={{ border: '1px solid #bbb', padding: '7px 10px', textAlign: 'right', width: '140px' }}>AMOUNT OWED</th>
+                    <tr>
+                      <th>SR NO</th>
+                      <th>NAME OF DEALER</th>
+                      <th>AMOUNT OWED</th>
                     </tr>
                   </thead>
                   <tbody>
                     {partiesInfo.map((p, i) => {
                       const owed = partyOwedMap[p.businessName] || 0;
                       return (
-                        <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#f9f9f9' }}
+                        <tr
+                          key={i}
                           onClick={() => { setSelectedParty(p.businessName); setView('balance'); }}
                           title={`Click to view ${p.businessName} balance`}
                         >
-                          <td style={{ border: '1px solid #ddd', padding: '6px 10px', textAlign: 'center', color: '#555' }}>{i + 1}</td>
-                          <td style={{ border: '1px solid #ddd', padding: '6px 10px', fontWeight: '500', cursor: 'pointer', color: '#007bff' }}>{p.businessName}</td>
-                          <td style={{ border: '1px solid #ddd', padding: '6px 10px', textAlign: 'right', fontWeight: 'bold', color: owed > 0 ? '#c0392b' : owed < 0 ? '#27ae60' : '#555' }}>
-                            {owed !== 0 ? `₹${owed.toFixed(2)}` : '₹0.00'}
+                          <td className="index-srno">{i + 1}</td>
+                          <td className="index-dealer-name">{p.businessName}</td>
+                          <td className={owed > 0 ? 'index-amount-positive' : owed < 0 ? 'index-amount-negative' : 'index-amount-zero'}>
+                            ₹{owed.toFixed(2)}
                           </td>
                         </tr>
                       );

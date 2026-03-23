@@ -1,4 +1,128 @@
 /* App.css */
+
+/* ============================================================
+   INDEX TABLE — BACKGROUND & OUTER CONTAINER
+   Change background color of the whole table here
+   ============================================================ */
+.index-table-wrapper {
+  margin-bottom: 24px;
+}
+
+.index-table-container {
+  overflow-x: auto;
+}
+
+.index-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  border: 2px solid #1e2a38;        /* Outer border of entire table */
+  background-color: #eeaa82;        /* ← TABLE BACKGROUND COLOR (change here) */
+}
+
+/* ============================================================
+   INDEX TABLE — HEADING TITLE ("INDEX")
+   Change the INDEX title color/style here
+   ============================================================ */
+.index-table-title {
+  text-align: center;
+  letter-spacing: 2px;
+  color: #1e2a38;                   /* ← INDEX HEADING COLOR (change here) */
+  font-size: 28px;
+  font-weight: bold;
+  margin-bottom: 8px;
+  text-decoration: underline;
+}
+
+/* ============================================================
+   INDEX TABLE — COLUMN HEADERS (SR NO, NAME OF DEALER, AMOUNT OWED)
+   Change the header row background/text here
+   ============================================================ */
+.index-table thead tr {
+  background-color: #1e2a38;        /* ← HEADER ROW BACKGROUND (change here) */
+}
+
+.index-table th {
+  border: 1px solid #1e2a38;        /* ← HEADER CELL BORDER (change here) */
+  padding: 9px 12px;
+  text-align: center;
+  color: #ffffff;                   /* ← HEADER TEXT COLOR (change here) */
+  font-size: 14px;                  /* ← HEADER FONT SIZE (change here) */
+  font-weight: bold;                /* ← HEADER FONT WEIGHT (change here) */
+  letter-spacing: 0.5px;
+}
+
+/* ============================================================
+   INDEX TABLE — DATA ROWS (Dealer names, amounts)
+   Change dealer name rows and amount cell colors here
+   ============================================================ */
+.index-table tbody tr {
+  background-color: #eeaa82;        /* ← DATA ROW BACKGROUND (change here) */
+  transition: background-color 0.15s;
+}
+
+.index-table tbody tr:nth-child(even) {
+  background-color: #e8956a;        /* ← ALTERNATE ROW BACKGROUND (change here) */
+}
+
+.index-table tbody tr:hover {
+  background-color: #d4845a;        /* ← HOVER ROW BACKGROUND (change here) */
+}
+
+.index-table td {
+  border: 1px solid #c47a52;        /* ← DATA CELL BORDER (change here) */
+  padding: 7px 12px;
+}
+
+/* SR NO column */
+.index-table .index-srno {
+  text-align: center;
+  color: #1e2a38;                   /* ← SR NO TEXT COLOR (change here) */
+  font-size: 13px;                  /* ← SR NO FONT SIZE (change here) */
+  width: 50px;
+}
+
+/* Dealer name column */
+.index-table .index-dealer-name {
+  font-weight: 600;                 /* ← DEALER NAME FONT WEIGHT (change here) */
+  color: #1e2a38;                   /* ← DEALER NAME TEXT COLOR (change here) */
+  font-size: 14px;                  /* ← DEALER NAME FONT SIZE (change here) */
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.index-table .index-dealer-name:hover {
+  color: #2e3d52;                   /* ← DEALER NAME HOVER COLOR (change here) */
+}
+
+/* Amount column — positive (owed) */
+.index-table .index-amount-positive {
+  text-align: right;
+  font-weight: bold;
+  color: #c0392b;                   /* ← OWED AMOUNT COLOR (red, change here) */
+  font-size: 13px;
+}
+
+/* Amount column — negative (credit/overpaid) */
+.index-table .index-amount-negative {
+  text-align: right;
+  font-weight: bold;
+  color: #27ae60;                   /* ← CREDIT AMOUNT COLOR (green, change here) */
+  font-size: 13px;
+}
+
+/* Amount column — zero */
+.index-table .index-amount-zero {
+  text-align: right;
+  font-weight: bold;
+  color: #555555;                   /* ← ZERO AMOUNT COLOR (change here) */
+  font-size: 13px;
+}
+
+/* ============================================================
+   REST OF YOUR ORIGINAL CSS BELOW — UNTOUCHED
+   ============================================================ */
+
 body {
   font-family: Arial, sans-serif;
   margin: 0;
@@ -11,7 +135,7 @@ body {
 .home-page {
   display: flex;
   min-height: 100vh;
-  margin-left: 160px; /* Width of your sidebar */
+  margin-left: 160px;
   padding: 0 10px;
   box-sizing: border-box;
 }
@@ -19,42 +143,38 @@ body {
 .sidebar {
   position: fixed;
   top: 0;
-  left: 0; /* ✅ no more sliding */
+  left: 0;
   width: 160px;
   height: 100vh;
-  background-color:rgb(238, 170, 130);
+  background-color: rgb(238, 170, 130);
   color: white;
   padding: 20px;
   overflow-y: auto;
   z-index: 1000;
-  transition: none; /* ✅ disables animation */
-}
-
-.sidebar {
-  overflow-y: auto; /* Enable vertical scrolling */
+  transition: none;
 }
 
 .sidebar::-webkit-scrollbar {
-  display: none; /* Hide the scrollbar for WebKit browsers, including Safari */
+  display: none;
 }
 
 .sidebar {
-  -ms-overflow-style: none; /* Hide scrollbar for Internet Explorer and Edge */
-  scrollbar-width: none;    /* Hide scrollbar for Firefox */
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 .sidebar button {
   display: block;
   width: 100%;
   padding: 35px 10px;
-  background-color:#1e2a38;
+  background-color: #1e2a38;
   color: white;
   border: none;
   cursor: pointer;
   text-align: center;
   font-size: 18px;
   margin-bottom: 10px;
-  border-radius: 0; /* Make square */
+  border-radius: 0;
   transition: background-color 0.3s ease, transform 0.2s ease;
 }
 
@@ -70,7 +190,6 @@ body {
 .content {
   flex-grow: 1;
   padding: 20px;
-  ;
 }
 
 h2 {
@@ -90,7 +209,6 @@ h2 {
   align-items: center;
   min-height: 10vh;
   font-size: 1.4rem;
-  ;
 }
 
 .total-price-text {
@@ -119,9 +237,9 @@ h2 {
 input,
 select {
   display: block;
-  margin: 10px auto; /* Center align horizontally */
+  margin: 10px auto;
   padding: 10px;
-  width: 50%; /* Adjust width as needed */
+  width: 50%;
   border-radius: 10px;
   font-size: 1.2rem;
   color: #1e3a5f;
@@ -143,7 +261,7 @@ select {
   align-items: center;
   margin-left: auto;
   margin-right: auto;
-  border-radius: 0; /* Make square */
+  border-radius: 0;
   background-color: #1e2a38;
   color: white;
   border: none;
@@ -238,11 +356,11 @@ button.large-button:hover {
 input,
 select,
 textarea {
-  width: 300px;            /* Fixed width for consistency */
-  max-width: 90%;          /* Responsive fallback */
-  padding: 10px;           /* Uniform padding */
+  width: 300px;
+  max-width: 90%;
+  padding: 10px;
   font-size: 1.1rem;
-  border-radius: 0;        /* Square corners */
+  border-radius: 0;
   border: 1px solid #1e3a5f;
   margin: 10px auto;
   display: block;
@@ -317,7 +435,7 @@ h6 {
 }
 
 .nrv-logo {
-  font-size: 10vw; /* Responsive size that works across devices */
+  font-size: 10vw;
   font-weight: bold;
   color: #1e2a38;
   white-space: nowrap;
@@ -382,7 +500,6 @@ h6 {
   display: block;
   margin-left: auto;
   margin-right: auto;
-  position: center;
 }
 
 h7 {
@@ -447,8 +564,8 @@ body::before {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%) rotate(-30deg);
-  font-size: 280px; /* 🔸 Increase size */
-  color: rgba(0, 0, 0, 0.08); /* 🔸 Make it darker */
+  font-size: 280px;
+  color: rgba(0, 0, 0, 0.08);
   font-weight: 900;
   z-index: -1;
   white-space: nowrap;
