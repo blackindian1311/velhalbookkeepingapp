@@ -652,9 +652,12 @@ const HomePage = () => {
     );
   };
 
+  // ✅ FIXED downloadCSV — properly closes quotes on each cell
   const downloadCSV = (filename, rows) => {
-    const csv = rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const csv = rows.map(row =>
+      row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+    ).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; a.download = filename;
@@ -665,7 +668,7 @@ const HomePage = () => {
   const exportPurchaseHistory = (format) => {
     const filtered = filterTransactionsByDate(purchaseTransactions.filter(tx => !selectedParty || tx.party === selectedParty), purchaseFilterStart, purchaseFilterEnd);
     const headers = ['Date', 'Party', 'Amount', 'GST', 'Bill No', 'GST Applied', 'Comment'];
-    const data = filtered.map(tx => [formatDate(tx.date), tx.party, `₹${asNumber(tx.amount).toFixed(2)}`, `₹${(tx.gstAmount || 0).toFixed(2)}`, tx.billNumber || '-', tx.hasGST !== false ? 'Yes' : 'No', tx.comment || '-']);
+    const data = filtered.map(tx => [formatDate(tx.date), tx.party, `₹${asNumber(tx.amount).toFixed(2)}`, `₹${Number(tx.gstAmount || 0).toFixed(2)}`, tx.billNumber || '-', tx.hasGST !== false ? 'Yes' : 'No', tx.comment || '-']);
     if (format === 'csv') { downloadCSV('purchase_history.csv', [headers, ...data]); }
     else { const d = new jsPDF(); d.text('Purchase History Report', 14, 15); autoTable(d, { startY: 25, head: [headers], body: data, theme: 'striped', headStyles: { fillColor: [41, 128, 185] } }); d.save('purchase_history.pdf'); }
   };
@@ -697,7 +700,7 @@ const HomePage = () => {
   const exportBalanceHistory = (format) => {
     const filtered = filterTransactionsByDate(filteredTransactions, balanceFilterStart, balanceFilterEnd);
     const headers = ['Date', 'Party', 'Type', 'Amount', 'GST', 'Method', 'Bill No', 'Comment'];
-    const data = filtered.map(tx => [formatDate(tx.date), tx.party, tx.type, `₹${asNumber(tx.amount).toFixed(2)}`, tx.type === 'purchase' ? `₹${(tx.gstAmount || 0).toFixed(2)}` : '-', tx.method || '-', tx.billNumber || '-', tx.comment || '-']);
+    const data = filtered.map(tx => [formatDate(tx.date), tx.party, tx.type, `₹${asNumber(tx.amount).toFixed(2)}`, tx.type === 'purchase' ? `₹${Number(tx.gstAmount || 0).toFixed(2)}` : '-', tx.method || '-', tx.billNumber || '-', tx.comment || '-']);
     if (format === 'csv') { downloadCSV('balance_history.csv', [headers, ...data]); }
     else { const d = new jsPDF(); d.text('Balance History Report', 14, 15); autoTable(d, { startY: 25, head: [headers], body: data, theme: 'striped', headStyles: { fillColor: [41, 128, 185] } }); d.save('balance_history.pdf'); }
   };
@@ -728,13 +731,35 @@ const HomePage = () => {
     allTransactions.forEach(tx => {
       const dt = new Date(tx.date);
       if (!exportStartDate || !exportEndDate || (dt >= from && dt <= to)) {
-        allTxRows.push([formatDate(tx.date), tx.party, tx.type, asNumber(tx.amount), tx.gstAmount || '', tx.method || '', tx.paymentBank === 'bank2' ? 'Bharat' : (tx.method && tx.method !== 'Cash' ? 'Nagarik' : '-'), tx.billNumber || '', tx.checkNumber || '', tx.comment || '', tx.type === 'purchase' ? (tx.hasGST !== false ? 'Yes' : 'No') : '-']);
+        allTxRows.push([
+          formatDate(tx.date),
+          tx.party,
+          tx.type,
+          asNumber(tx.amount).toFixed(2),
+          tx.gstAmount ? Number(tx.gstAmount).toFixed(2) : '',
+          tx.method || '',
+          tx.paymentBank === 'bank2' ? 'Bharat' : (tx.method && tx.method !== 'Cash' ? 'Nagarik' : '-'),
+          tx.billNumber || '',
+          tx.checkNumber || '',
+          tx.comment || '',
+          tx.type === 'purchase' ? (tx.hasGST !== false ? 'Yes' : 'No') : '-'
+        ]);
       }
     });
     const partyRows = [['Business', 'Phone', 'Bank', 'Bank Name', 'Contact', 'Mobile']];
     partiesInfo.forEach(p => partyRows.push([p.businessName, p.phoneNumber, p.bankNumber, p.bankName, p.contactName, p.contactMobile]));
     const nagarikRows = [['Date', 'Party', 'Method', 'Check No.', 'Debit', 'Credit', 'Balance']];
-    getBankLedger().forEach(e => { const dt = new Date(e.date); if (!exportStartDate || !exportEndDate || (dt >= from && dt <= to)) { nagarikRows.push([formatDate(e.date), e.party, e.method, e.checkNumber || '-', e.debit || '', e.credit || '', e.balance || '']); } });
+    getBankLedger().forEach(e => {
+      const dt = new Date(e.date);
+      if (!exportStartDate || !exportEndDate || (dt >= from && dt <= to)) {
+        nagarikRows.push([
+          formatDate(e.date), e.party, e.method, e.checkNumber || '-',
+          e.debit ? Number(e.debit).toFixed(2) : '',
+          e.credit ? Number(e.credit).toFixed(2) : '',
+          Number(e.balance).toFixed(2)
+        ]);
+      }
+    });
     downloadCSV('transactions_filtered.csv', allTxRows);
     downloadCSV('parties.csv', partyRows);
     downloadCSV('nagarik_ledger_filtered.csv', nagarikRows);
@@ -749,7 +774,6 @@ const HomePage = () => {
   const bank2FilteredLedger = filterTransactionsByDate(getBank2Ledger(), bank2FilterStart, bank2FilterEnd);
   const salaryFilteredTransactions = filterTransactionsByDate(salaryTransactions, salaryFilterStart, salaryFilterEnd);
 
-  // Compute per-party owed for the INDEX table
   const partyOwedMap = {};
   allTransactions.forEach(tx => {
     if (!partyOwedMap[tx.party]) partyOwedMap[tx.party] = 0;
