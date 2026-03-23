@@ -749,6 +749,14 @@ const HomePage = () => {
   const bank2FilteredLedger = filterTransactionsByDate(getBank2Ledger(), bank2FilterStart, bank2FilterEnd);
   const salaryFilteredTransactions = filterTransactionsByDate(salaryTransactions, salaryFilterStart, salaryFilterEnd);
 
+  // Compute per-party owed for the INDEX table
+  const partyOwedMap = {};
+  allTransactions.forEach(tx => {
+    if (!partyOwedMap[tx.party]) partyOwedMap[tx.party] = 0;
+    if (tx.type === 'purchase') partyOwedMap[tx.party] += asNumber(tx.amount);
+    if (tx.type === 'payment' || tx.type === 'return') partyOwedMap[tx.party] -= asNumber(tx.amount);
+  });
+
   return (
     <div className='home-page'>
       <div className='sidebar'>
@@ -875,6 +883,44 @@ const HomePage = () => {
             <h1>NANDKUMAR RAMACHANDRA VELHAL</h1>
             <h3>Total Owed to All Parties: ₹{(totalOwed || 0).toFixed(2)}</h3>
             <h4>All Transactions <br /><span style={{ fontWeight: 'normal' }}>Total GST on Purchases: ₹{allTransactions.filter(tx => tx.type === 'purchase' && tx.hasGST !== false).reduce((s, tx) => s + (Number(tx.gstAmount) || 0), 0).toFixed(2)}</span></h4>
+
+            {/* ── INDEX TABLE ── */}
+            <div style={{ marginBottom: '24px' }}>
+              <h3 style={{ textAlign: 'center', letterSpacing: '2px', color: '#c0392b', marginBottom: '8px' }}>INDEX</h3>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', border: '1px solid #bbb' }}>
+                  <thead>
+                    <tr style={{ background: '#f0f0f0' }}>
+                      <th style={{ border: '1px solid #bbb', padding: '7px 10px', textAlign: 'center', width: '50px' }}>SR NO</th>
+                      <th style={{ border: '1px solid #bbb', padding: '7px 10px', textAlign: 'left' }}>NAME OF DEALER</th>
+                      <th style={{ border: '1px solid #bbb', padding: '7px 10px', textAlign: 'right', width: '140px' }}>AMOUNT OWED</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {partiesInfo.map((p, i) => {
+                      const owed = partyOwedMap[p.businessName] || 0;
+                      return (
+                        <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#f9f9f9' }}
+                          onClick={() => { setSelectedParty(p.businessName); setView('balance'); }}
+                          title={`Click to view ${p.businessName} balance`}
+                        >
+                          <td style={{ border: '1px solid #ddd', padding: '6px 10px', textAlign: 'center', color: '#555' }}>{i + 1}</td>
+                          <td style={{ border: '1px solid #ddd', padding: '6px 10px', fontWeight: '500', cursor: 'pointer', color: '#007bff' }}>{p.businessName}</td>
+                          <td style={{ border: '1px solid #ddd', padding: '6px 10px', textAlign: 'right', fontWeight: 'bold', color: owed > 0 ? '#c0392b' : owed < 0 ? '#27ae60' : '#555' }}>
+                            {owed !== 0 ? `₹${owed.toFixed(2)}` : '₹0.00'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {partiesInfo.length === 0 && (
+                      <tr><td colSpan={3} style={{ textAlign: 'center', color: '#aaa', padding: '16px' }}>No parties added yet.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            {/* ── END INDEX TABLE ── */}
+
             <div style={{ marginBottom: '15px' }}>
               <label>From: <input type='date' value={homeFilterStart} onChange={e => setHomeFilterStart(e.target.value)} /></label>
               <label style={{ marginLeft: 12 }}>To: <input type='date' value={homeFilterEnd} onChange={e => setHomeFilterEnd(e.target.value)} /></label>
