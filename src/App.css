@@ -98,25 +98,25 @@
 /* Amount column — positive (owed) */
 .index-table .index-amount-positive {
   text-align: right;
-  font-weight: bold;
-  color: #c0392b;                   /* ← OWED AMOUNT COLOR (red, change here) */
-  font-size: 13px;
+  font-weight: 800;
+  color: #1e2a38;                   /* ← OWED AMOUNT COLOR (red, change here) */
+  font-size: 18px;
 }
 
 /* Amount column — negative (credit/overpaid) */
 .index-table .index-amount-negative {
   text-align: right;
-  font-weight: bold;
-  color: #27ae60;                   /* ← CREDIT AMOUNT COLOR (green, change here) */
-  font-size: 13px;
+  font-weight: 800;
+  color: #1e2a38;                   /* ← CREDIT AMOUNT COLOR (green, change here) */
+  font-size: 18px;
 }
 
 /* Amount column — zero */
 .index-table .index-amount-zero {
   text-align: right;
-  font-weight: bold;
-  color: #555555;                   /* ← ZERO AMOUNT COLOR (change here) */
-  font-size: 13px;
+  font-weight: 800;
+  color: #1e2a38;                   /* ← ZERO AMOUNT COLOR (change here) */
+  font-size: 18px;
 }
 
 /* ============================================================
