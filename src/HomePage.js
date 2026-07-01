@@ -106,7 +106,7 @@ const EmployeeTable = ({ employees, onEditEmployee, onSetupSalary, onViewEmploye
         {employees.map((emp, i) => (
           <tr key={emp.id || i}>
             <td style={{ padding: '8px', fontSize: '14px', fontWeight: 'bold' }}>{emp.name}</td>
-            <td style={{ padding: '8px' }}>{emp.basicSalary ? `₹${asNumber(emp.basicSalary).toFixed(2)}` : 'Not Set'}</td>
+            <td style={{ padding: '8px' }}>{emp.basicSalary ? `${asNumber(emp.basicSalary).toFixed(2)}` : 'Not Set'}</td>
             <td style={{ padding: '8px' }}>{emp.salaryPeriodStart && emp.salaryPeriodEnd ? `${emp.salaryPeriodStart} to ${emp.salaryPeriodEnd} of month` : 'Not Set'}</td>
             <td style={{ padding: '8px' }}>{emp.salaryLastUpdated ? formatDate(emp.salaryLastUpdated) : '-'}</td>
             <td style={{ padding: '8px' }}>
@@ -131,7 +131,7 @@ function CommentModal({ tx, onClose }) {
           <div><strong>Type:</strong> {tx.type}</div>
           <div><strong>Date:</strong> {formatDate(tx.date)}</div>
           <div><strong>Party:</strong> {tx.party}</div>
-          <div><strong>Amount:</strong> ₹{asNumber(tx.amount).toFixed(2)}</div>
+          <div><strong>Amount:</strong> {asNumber(tx.amount).toFixed(2)}</div>
           {tx.billNumber && <div><strong>Bill No:</strong> {tx.billNumber}</div>}
           {tx.method && <div><strong>Method:</strong> {tx.method}</div>}
           {tx.checkNumber && <div><strong>Check No:</strong> {tx.checkNumber}</div>}
@@ -387,9 +387,9 @@ const HomePage = () => {
 
   const handleDeleteTransaction = async (tx) => {
     const msg =
-      tx.type === 'purchase' ? `Delete purchase ₹${asNumber(tx.amount).toFixed(2)} for ${tx.party}?` :
-      tx.type === 'payment' ? `Delete ${tx.method || ''} payment ₹${asNumber(tx.amount).toFixed(2)} for ${tx.party}?` :
-      `Delete return ₹${asNumber(tx.amount).toFixed(2)} for ${tx.party}?`;
+      tx.type === 'purchase' ? `Delete purchase ${asNumber(tx.amount).toFixed(2)} for ${tx.party}?` :
+      tx.type === 'payment' ? `Delete ${tx.method || ''} payment ${asNumber(tx.amount).toFixed(2)} for ${tx.party}?` :
+      `Delete return ${asNumber(tx.amount).toFixed(2)} for ${tx.party}?`;
     if (!window.confirm(msg)) return;
     try {
       const coll = tx.type === 'purchase' ? 'purchases' : tx.type === 'payment' ? 'payments' : 'returns';
@@ -597,7 +597,7 @@ const HomePage = () => {
               const debit = tx.type === 'purchase' ? asNumber(tx.amount) : null;
               const credit = (tx.type === 'payment' || tx.type === 'return') ? asNumber(tx.amount) : null;
               const gst = tx.type === 'purchase'
-                ? (tx.hasGST !== false ? '₹' + (tx.gstAmount !== undefined ? Number(tx.gstAmount).toFixed(2) : ((asNumber(tx.amount) / 1.05) * 0.05).toFixed(2)) : '₹0.00')
+                ? (tx.hasGST !== false ? Number(tx.gstAmount !== undefined ? tx.gstAmount : (asNumber(tx.amount) / 1.05) * 0.05).toFixed(2) : '0.00')
                 : '-';
               return (
                 <tr key={tx.id || i}>
@@ -614,11 +614,11 @@ const HomePage = () => {
                       : '-'}
                   </td>
                   <td style={{ padding: '6px 4px', fontSize: '12px' }}>{tx.method === 'Check' && tx.checkNumber ? tx.checkNumber : '-'}</td>
-                  <td style={{ padding: '6px 4px', fontSize: '12px' }}>₹{asNumber(tx.amount).toFixed(2)}</td>
+                  <td style={{ padding: '6px 4px', fontSize: '12px' }}>{asNumber(tx.amount).toFixed(2)}</td>
                   <td style={{ padding: '6px 4px', fontSize: '12px' }}>{gst}</td>
-                  <td style={{ padding: '6px 4px', fontSize: '12px' }}>{debit !== null ? `₹${asNumber(debit).toFixed(2)}` : '-'}</td>
-                  <td style={{ padding: '6px 4px', fontSize: '12px' }}>{credit !== null ? `₹${asNumber(credit).toFixed(2)}` : '-'}</td>
-                  <td style={{ padding: '6px 4px', fontSize: '12px' }}>₹{runningBalances[tx.id] !== undefined ? asNumber(runningBalances[tx.id]).toFixed(2) : '-'}</td>
+                  <td style={{ padding: '6px 4px', fontSize: '12px' }}>{debit !== null ? asNumber(debit).toFixed(2) : '-'}</td>
+                  <td style={{ padding: '6px 4px', fontSize: '12px' }}>{credit !== null ? asNumber(credit).toFixed(2) : '-'}</td>
+                  <td style={{ padding: '6px 4px', fontSize: '12px' }}>{runningBalances[tx.id] !== undefined ? asNumber(runningBalances[tx.id]).toFixed(2) : '-'}</td>
                   <td style={{ padding: '6px 4px' }}><button onClick={() => onEdit && onEdit(tx)} style={{ padding: '4px 6px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '3px', background: '#f8f9fa' }}>Edit</button></td>
                   <td style={{ padding: '6px 4px' }}>{tx.comment ? <button onClick={() => onSeeComment && onSeeComment(tx)} style={{ padding: '4px 6px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '3px', background: '#e7f3ff' }}>Comment</button> : ''}</td>
                   <td style={{ padding: '6px 4px' }}><button onClick={() => onDelete && onDelete(tx)} style={{ padding: '4px 6px', fontSize: '11px', color: 'white', background: '#dc3545', border: 'none', borderRadius: '3px' }}>Del</button></td>
@@ -643,7 +643,7 @@ const HomePage = () => {
               <tr key={salary.id || i}>
                 <td style={{ padding: '6px 4px', fontSize: '12px' }}>{formatDate(salary.date)}</td>
                 <td style={{ padding: '6px 4px', fontSize: '12px' }}>{salary.employeeName}</td>
-                <td style={{ padding: '6px 4px', fontSize: '12px' }}>₹{asNumber(salary.amount).toFixed(2)}</td>
+                <td style={{ padding: '6px 4px', fontSize: '12px' }}>{asNumber(salary.amount).toFixed(2)}</td>
               </tr>
             ))}
           </tbody>
@@ -652,7 +652,6 @@ const HomePage = () => {
     );
   };
 
-  // ✅ FIXED downloadCSV — properly closes quotes on each cell
   const downloadCSV = (filename, rows) => {
     const csv = rows.map(row =>
       row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
@@ -668,7 +667,7 @@ const HomePage = () => {
   const exportPurchaseHistory = (format) => {
     const filtered = filterTransactionsByDate(purchaseTransactions.filter(tx => !selectedParty || tx.party === selectedParty), purchaseFilterStart, purchaseFilterEnd);
     const headers = ['Date', 'Party', 'Amount', 'GST', 'Bill No', 'GST Applied', 'Comment'];
-    const data = filtered.map(tx => [formatDate(tx.date), tx.party, `₹${asNumber(tx.amount).toFixed(2)}`, `₹${Number(tx.gstAmount || 0).toFixed(2)}`, tx.billNumber || '-', tx.hasGST !== false ? 'Yes' : 'No', tx.comment || '-']);
+    const data = filtered.map(tx => [formatDate(tx.date), tx.party, asNumber(tx.amount).toFixed(2), Number(tx.gstAmount || 0).toFixed(2), tx.billNumber || '-', tx.hasGST !== false ? 'Yes' : 'No', tx.comment || '-']);
     if (format === 'csv') { downloadCSV('purchase_history.csv', [headers, ...data]); }
     else { const d = new jsPDF(); d.text('Purchase History Report', 14, 15); autoTable(d, { startY: 25, head: [headers], body: data, theme: 'striped', headStyles: { fillColor: [41, 128, 185] } }); d.save('purchase_history.pdf'); }
   };
@@ -676,7 +675,7 @@ const HomePage = () => {
   const exportPaymentHistory = (format) => {
     const filtered = filterTransactionsByDate(paymentTransactions.filter(tx => !selectedParty || tx.party === selectedParty), paymentFilterStart, paymentFilterEnd);
     const headers = ['Date', 'Party', 'Amount', 'Method', 'Bank', 'Check No', 'Comment'];
-    const data = filtered.map(tx => [formatDate(tx.date), tx.party, `₹${asNumber(tx.amount).toFixed(2)}`, tx.method || '-', tx.paymentBank === 'bank2' ? 'Bharat' : (tx.method && tx.method !== 'Cash' ? 'Nagarik' : '-'), tx.checkNumber || '-', tx.comment || '-']);
+    const data = filtered.map(tx => [formatDate(tx.date), tx.party, asNumber(tx.amount).toFixed(2), tx.method || '-', tx.paymentBank === 'bank2' ? 'Bharat' : (tx.method && tx.method !== 'Cash' ? 'Nagarik' : '-'), tx.checkNumber || '-', tx.comment || '-']);
     if (format === 'csv') { downloadCSV('payment_history.csv', [headers, ...data]); }
     else { const d = new jsPDF(); d.text('Payment History Report', 14, 15); autoTable(d, { startY: 25, head: [headers], body: data, theme: 'striped', headStyles: { fillColor: [41, 128, 185] } }); d.save('payment_history.pdf'); }
   };
@@ -684,7 +683,7 @@ const HomePage = () => {
   const exportReturnHistory = (format) => {
     const filtered = filterTransactionsByDate(returnTransactions.filter(tx => !selectedParty || tx.party === selectedParty), returnFilterStart, returnFilterEnd);
     const headers = ['Date', 'Party', 'Amount', 'Bill No', 'Comment'];
-    const data = filtered.map(tx => [formatDate(tx.date), tx.party, `₹${asNumber(tx.amount).toFixed(2)}`, tx.billNumber || '-', tx.comment || '-']);
+    const data = filtered.map(tx => [formatDate(tx.date), tx.party, asNumber(tx.amount).toFixed(2), tx.billNumber || '-', tx.comment || '-']);
     if (format === 'csv') { downloadCSV('return_history.csv', [headers, ...data]); }
     else { const d = new jsPDF(); d.text('Return History Report', 14, 15); autoTable(d, { startY: 25, head: [headers], body: data, theme: 'striped', headStyles: { fillColor: [41, 128, 185] } }); d.save('return_history.pdf'); }
   };
@@ -692,17 +691,53 @@ const HomePage = () => {
   const exportSalaryHistory = (format) => {
     const filtered = filterTransactionsByDate(salaryTransactions, salaryFilterStart, salaryFilterEnd);
     const headers = ['Date', 'Employee Name', 'Amount'];
-    const data = filtered.map(tx => [formatDate(tx.date), tx.employeeName, `₹${asNumber(tx.amount).toFixed(2)}`]);
+    const data = filtered.map(tx => [formatDate(tx.date), tx.employeeName, asNumber(tx.amount).toFixed(2)]);
     if (format === 'csv') { downloadCSV('salary_history.csv', [headers, ...data]); }
     else { const d = new jsPDF(); d.text('Salary History Report', 14, 15); autoTable(d, { startY: 25, head: [headers], body: data, theme: 'striped', headStyles: { fillColor: [41, 128, 185] } }); d.save('salary_history.pdf'); }
   };
 
+  // ✅ FIXED: exportBalanceHistory NOW INCLUDES DATE, REMOVES ₹ SYMBOL, ADDS BALANCE
   const exportBalanceHistory = (format) => {
     const filtered = filterTransactionsByDate(filteredTransactions, balanceFilterStart, balanceFilterEnd);
-    const headers = ['Date', 'Party', 'Type', 'Amount', 'GST', 'Method', 'Bill No', 'Comment'];
-    const data = filtered.map(tx => [formatDate(tx.date), tx.party, tx.type, `₹${asNumber(tx.amount).toFixed(2)}`, tx.type === 'purchase' ? `₹${Number(tx.gstAmount || 0).toFixed(2)}` : '-', tx.method || '-', tx.billNumber || '-', tx.comment || '-']);
-    if (format === 'csv') { downloadCSV('balance_history.csv', [headers, ...data]); }
-    else { const d = new jsPDF(); d.text('Balance History Report', 14, 15); autoTable(d, { startY: 25, head: [headers], body: data, theme: 'striped', headStyles: { fillColor: [41, 128, 185] } }); d.save('balance_history.pdf'); }
+    
+    // Calculate running balances
+    const runningBalances = {};
+    const sortedByParty = {};
+    filtered.forEach(tx => { if (!sortedByParty[tx.party]) sortedByParty[tx.party] = []; sortedByParty[tx.party].push(tx); });
+    Object.keys(sortedByParty).forEach(party => {
+      sortedByParty[party].sort((a, b) => new Date(a.date) - new Date(b.date));
+      let bal = 0;
+      sortedByParty[party].forEach(tx => {
+        if (tx.type === 'purchase') bal += asNumber(tx.amount);
+        if (tx.type === 'payment' || tx.type === 'return') bal -= asNumber(tx.amount);
+        runningBalances[tx.id] = bal;
+      });
+    });
+
+    const headers = ['Date', 'Party', 'Type', 'Amount', 'GST', 'Method', 'Bill No', 'Balance', 'Comment'];
+    const data = filtered.map(tx => {
+      const gst = tx.type === 'purchase' ? (tx.hasGST !== false ? Number(tx.gstAmount || 0).toFixed(2) : '0.00') : '-';
+      return [
+        formatDate(tx.date),
+        tx.party,
+        tx.type,
+        asNumber(tx.amount).toFixed(2),
+        gst,
+        tx.method || '-',
+        tx.billNumber || '-',
+        runningBalances[tx.id] !== undefined ? asNumber(runningBalances[tx.id]).toFixed(2) : '-',
+        tx.comment || '-'
+      ];
+    });
+
+    if (format === 'csv') { 
+      downloadCSV('balance_history.csv', [headers, ...data]); 
+    } else { 
+      const d = new jsPDF(); 
+      d.text('Balance History Report', 14, 15); 
+      autoTable(d, { startY: 25, head: [headers], body: data, theme: 'striped', headStyles: { fillColor: [41, 128, 185] } }); 
+      d.save('balance_history.pdf'); 
+    }
   };
 
   const exportBankHistory = (format) => {
@@ -710,7 +745,7 @@ const HomePage = () => {
     const ledgerData = isBank2 ? filterTransactionsByDate(getBank2Ledger(), bank2FilterStart, bank2FilterEnd) : filterTransactionsByDate(getBankLedger(), bankFilterStart, bankFilterEnd);
     const bankLabel = isBank2 ? 'Bharat' : 'Nagarik';
     const headers = ['Date', 'Party', 'Method', 'Check No', 'Debit', 'Credit', 'Balance'];
-    const data = ledgerData.map(entry => [formatDate(entry.date), entry.party, entry.method, entry.checkNumber || '-', entry.debit ? `₹${entry.debit.toFixed(2)}` : '-', entry.credit ? `₹${entry.credit.toFixed(2)}` : '-', `₹${entry.balance.toFixed(2)}`]);
+    const data = ledgerData.map(entry => [formatDate(entry.date), entry.party, entry.method, entry.checkNumber || '-', entry.debit ? entry.debit.toFixed(2) : '-', entry.credit ? entry.credit.toFixed(2) : '-', entry.balance.toFixed(2)]);
     if (format === 'csv') { downloadCSV(`${isBank2 ? 'bharat' : 'nagarik'}_history.csv`, [headers, ...data]); }
     else { const d = new jsPDF(); d.text(`${bankLabel} Bank Transaction History`, 14, 15); autoTable(d, { startY: 25, head: [headers], body: data, theme: 'striped', headStyles: { fillColor: [41, 128, 185] } }); d.save(`${isBank2 ? 'bharat' : 'nagarik'}_history.pdf`); }
   };
@@ -719,7 +754,7 @@ const HomePage = () => {
     const from = new Date(exportStartDate); const to = new Date(exportEndDate);
     if (exportEndDate) to.setHours(23, 59, 59, 999);
     const d = new jsPDF(); d.text('Velhal Bookkeeping Summary', 14, 15);
-    const txRows = allTransactions.filter(tx => { if (!exportStartDate || !exportEndDate) return true; const dt = new Date(tx.date); return dt >= from && dt <= to; }).map(tx => [formatDate(tx.date), tx.party, tx.type, asNumber(tx.amount), tx.method || '', tx.billNumber || '', tx.checkNumber || '']);
+    const txRows = allTransactions.filter(tx => { if (!exportStartDate || !exportEndDate) return true; const dt = new Date(tx.date); return dt >= from && dt <= to; }).map(tx => [formatDate(tx.date), tx.party, tx.type, asNumber(tx.amount).toFixed(2), tx.method || '', tx.billNumber || '', tx.checkNumber || '']);
     autoTable(d, { startY: 20, head: [['Date', 'Party', 'Type', 'Amount', 'Method', 'Bill No', 'Check No']], body: txRows, theme: 'striped', headStyles: { fillColor: [41, 128, 185] } });
     d.save('velhal_summary.pdf');
   };
@@ -814,7 +849,7 @@ const HomePage = () => {
                 </div>
                 {editForm.amount && !isNaN(asNumber(editForm.amount)) && (
                   <div style={{ fontSize: '14px', color: '#666', marginTop: '5px' }}>
-                    {editForm.hasGST ? (<><div>GST (5%): ₹{(asNumber(editForm.amount) * 0.05).toFixed(2)}</div><div>Total with GST: ₹{Math.round(asNumber(editForm.amount) * 1.05)}</div></>) : (<div>Total (No GST): ₹{asNumber(editForm.amount).toFixed(2)}</div>)}
+                    {editForm.hasGST ? (<><div>GST (5%): {(asNumber(editForm.amount) * 0.05).toFixed(2)}</div><div>Total with GST: {Math.round(asNumber(editForm.amount) * 1.05)}</div></>) : (<div>Total (No GST): {asNumber(editForm.amount).toFixed(2)}</div>)}
                   </div>
                 )}
               </>
@@ -873,11 +908,11 @@ const HomePage = () => {
             <div style={{ maxWidth: 600, minWidth: 500, margin: 'auto', border: '1px solid #bbb', borderRadius: 6, background: '#fff', padding: 20 }}>
               <div style={{ textAlign: 'center', marginBottom: 20 }}>
                 <h1 style={{ fontSize: '36px', margin: '10px 0', color: '#333' }}>{viewingEmployee.name.toUpperCase()}</h1>
-                <div style={{ fontSize: '24px', color: '#007bff', fontWeight: 'bold' }}>Remaining This Month: ₹{calculateRemainingSalary(viewingEmployee, salaryTransactions).toFixed(2)}</div>
+                <div style={{ fontSize: '24px', color: '#007bff', fontWeight: 'bold' }}>Remaining This Month: {calculateRemainingSalary(viewingEmployee, salaryTransactions).toFixed(2)}</div>
               </div>
               <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '8px', marginBottom: '15px' }}>
                 <h4 style={{ marginTop: 0 }}>Employee Details</h4>
-                <p><strong>Basic Salary:</strong> ₹{viewingEmployee.basicSalary ? asNumber(viewingEmployee.basicSalary).toFixed(2) : 'Not Set'}</p>
+                <p><strong>Basic Salary:</strong> {viewingEmployee.basicSalary ? asNumber(viewingEmployee.basicSalary).toFixed(2) : 'Not Set'}</p>
                 <p><strong>Salary Period:</strong> {viewingEmployee.salaryPeriodStart && viewingEmployee.salaryPeriodEnd ? `${viewingEmployee.salaryPeriodStart} to ${viewingEmployee.salaryPeriodEnd} of each month` : 'Not Set'}</p>
                 <p><strong>Last Updated:</strong> {viewingEmployee.salaryLastUpdated ? formatDate(viewingEmployee.salaryLastUpdated) : '-'}</p>
               </div>
@@ -886,7 +921,7 @@ const HomePage = () => {
                 <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
                   {salaryTransactions.filter(sal => sal.employeeName === viewingEmployee.name).sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5).map((sal, idx) => (
                     <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px', background: idx % 2 === 0 ? '#f8f9fa' : 'white', borderRadius: '4px', marginBottom: '4px' }}>
-                      <span>{formatDate(sal.date)}</span><span>₹{asNumber(sal.amount).toFixed(2)}</span>
+                      <span>{formatDate(sal.date)}</span><span>{asNumber(sal.amount).toFixed(2)}</span>
                     </div>
                   ))}
                   {salaryTransactions.filter(sal => sal.employeeName === viewingEmployee.name).length === 0 && <p style={{ color: '#888' }}>No salary payments yet</p>}
@@ -905,8 +940,8 @@ const HomePage = () => {
         {view === 'home' && (
           <>
             <h1>NANDKUMAR RAMACHANDRA VELHAL</h1>
-            <h3>Total Owed to All Parties: ₹{(totalOwed || 0).toFixed(2)}</h3>
-            <h4>All Transactions <br /><span style={{ fontWeight: 'normal' }}>Total GST on Purchases: ₹{allTransactions.filter(tx => tx.type === 'purchase' && tx.hasGST !== false).reduce((s, tx) => s + (Number(tx.gstAmount) || 0), 0).toFixed(2)}</span></h4>
+            <h3>Total Owed to All Parties: {(totalOwed || 0).toFixed(2)}</h3>
+            <h4>All Transactions <br /><span style={{ fontWeight: 'normal' }}>Total GST on Purchases: {allTransactions.filter(tx => tx.type === 'purchase' && tx.hasGST !== false).reduce((s, tx) => s + (Number(tx.gstAmount) || 0), 0).toFixed(2)}</span></h4>
 
             {/* ── INDEX TABLE ── */}
             <div className="index-table-wrapper">
@@ -932,7 +967,7 @@ const HomePage = () => {
                           <td className="index-srno">{i + 1}</td>
                           <td className="index-dealer-name">{p.businessName}</td>
                           <td className={owed > 0 ? 'index-amount-positive' : owed < 0 ? 'index-amount-negative' : 'index-amount-zero'}>
-                            ₹{owed.toFixed(2)}
+                            {owed.toFixed(2)}
                           </td>
                         </tr>
                       );
@@ -982,7 +1017,7 @@ const HomePage = () => {
             <button className='clearForm-button' onClick={clearFormFields} style={{ marginLeft: 12 }}>Clear</button>
             {form.amount && !isNaN(asNumber(form.amount)) && (
               <div style={{ marginTop: 10 }}>
-                {form.hasGST ? (<><p>GST (5%): ₹{(asNumber(form.amount) * 0.05).toFixed(2)}</p><p>Total with GST: ₹{Math.round(asNumber(form.amount) * 1.05)}</p></>) : (<p>Total (No GST): ₹{asNumber(form.amount).toFixed(2)}</p>)}
+                {form.hasGST ? (<><p>GST (5%): {(asNumber(form.amount) * 0.05).toFixed(2)}</p><p>Total with GST: {Math.round(asNumber(form.amount) * 1.05)}</p></>) : (<p>Total (No GST): {asNumber(form.amount).toFixed(2)}</p>)}
               </div>
             )}
             <h3 style={{ marginTop: '30px' }}>Purchase History</h3>
@@ -1022,13 +1057,13 @@ const HomePage = () => {
                     onClick={() => setForm({ ...form, paymentBank: 'bank1' })}
                     style={{ flex: 1, padding: '10px', fontWeight: 'bold', borderRadius: '6px', border: '2px solid #007bff', cursor: 'pointer', background: form.paymentBank === 'bank1' ? '#007bff' : '#fff', color: form.paymentBank === 'bank1' ? '#fff' : '#007bff', transition: 'all 0.2s' }}
                   >
-                    Nagarik<br /><span style={{ fontSize: '12px', fontWeight: 'normal' }}>₹{(bankBalance || 0).toFixed(2)}</span>
+                    Nagarik<br /><span style={{ fontSize: '12px', fontWeight: 'normal' }}>{(bankBalance || 0).toFixed(2)}</span>
                   </button>
                   <button
                     onClick={() => setForm({ ...form, paymentBank: 'bank2' })}
                     style={{ flex: 1, padding: '10px', fontWeight: 'bold', borderRadius: '6px', border: '2px solid #28a745', cursor: 'pointer', background: form.paymentBank === 'bank2' ? '#28a745' : '#fff', color: form.paymentBank === 'bank2' ? '#fff' : '#28a745', transition: 'all 0.2s' }}
                   >
-                    Bharat<br /><span style={{ fontSize: '12px', fontWeight: 'normal' }}>₹{(bank2Balance || 0).toFixed(2)}</span>
+                    Bharat<br /><span style={{ fontSize: '12px', fontWeight: 'normal' }}>{(bank2Balance || 0).toFixed(2)}</span>
                   </button>
                 </div>
               </div>
@@ -1077,8 +1112,8 @@ const HomePage = () => {
               <option value=''>Select Party</option>
               {partiesInfo.map((p, i) => <option key={i} value={p.businessName}>{p.businessName}</option>)}
             </select>
-            <p>Total Owed: ₹{(totalOwed || 0).toFixed(2)}</p>
-            <p>Total GST on Purchases: ₹{filteredTransactions.filter(tx => tx.type === 'purchase' && tx.hasGST !== false).reduce((s, tx) => s + (Number(tx.gstAmount) || 0), 0).toFixed(2)}</p>
+            <p>Total Owed: {(totalOwed || 0).toFixed(2)}</p>
+            <p>Total GST on Purchases: {filteredTransactions.filter(tx => tx.type === 'purchase' && tx.hasGST !== false).reduce((s, tx) => s + (Number(tx.gstAmount) || 0), 0).toFixed(2)}</p>
             <h3 style={{ marginTop: '30px' }}>Balance History</h3>
             <div style={{ marginBottom: '15px' }}>
               <label>From: <input type='date' value={balanceFilterStart} onChange={e => setBalanceFilterStart(e.target.value)} /></label>
@@ -1119,7 +1154,7 @@ const HomePage = () => {
 
             {selectedBank === 'bank1' && (
               <>
-                <h2>Nagarik Balance: ₹{(bankBalance || 0).toFixed(2)}</h2>
+                <h2>Nagarik Balance: {(bankBalance || 0).toFixed(2)}</h2>
                 <input type='number' value={depositAmount} onChange={e => setDepositAmount(e.target.value)} placeholder='Enter deposit amount' />
                 <input type='date' value={depositDate} onChange={e => setDepositDate(e.target.value)} />
                 <button onClick={handleDeposit} className='addPurchase-button'>Deposit</button>
@@ -1151,9 +1186,9 @@ const HomePage = () => {
                           <td style={{ padding: '6px', fontSize: '12px' }}>{e.party}</td>
                           <td style={{ padding: '6px', fontSize: '12px' }}>{e.method}</td>
                           <td style={{ padding: '6px', fontSize: '12px' }}>{e.checkNumber || '-'}</td>
-                          <td style={{ padding: '6px', fontSize: '12px', color: e.debit ? 'red' : 'black' }}>{e.debit ? `₹${e.debit.toFixed(2)}` : '-'}</td>
-                          <td style={{ padding: '6px', fontSize: '12px', color: e.credit ? 'green' : 'black' }}>{e.credit ? `₹${e.credit.toFixed(2)}` : '-'}</td>
-                          <td style={{ padding: '6px', fontSize: '12px' }}>₹{e.balance.toFixed(2)}</td>
+                          <td style={{ padding: '6px', fontSize: '12px', color: e.debit ? 'red' : 'black' }}>{e.debit ? e.debit.toFixed(2) : '-'}</td>
+                          <td style={{ padding: '6px', fontSize: '12px', color: e.credit ? 'green' : 'black' }}>{e.credit ? e.credit.toFixed(2) : '-'}</td>
+                          <td style={{ padding: '6px', fontSize: '12px' }}>{e.balance.toFixed(2)}</td>
                           <td style={{ padding: '6px' }}>
                             {e.type === 'deposit' && e.source === 'bankDeposits' && e.isPaymentDeduction !== true
                               ? <button onClick={() => handleDeleteBankEntry(e)} style={{ padding: '4px 6px', fontSize: '11px', color: 'white', background: '#dc3545', border: 'none', borderRadius: '3px' }}>Del</button>
@@ -1171,7 +1206,7 @@ const HomePage = () => {
 
             {selectedBank === 'bank2' && (
               <>
-                <h2>Bharat Balance: ₹{(bank2Balance || 0).toFixed(2)}</h2>
+                <h2>Bharat Balance: {(bank2Balance || 0).toFixed(2)}</h2>
                 <input type='number' value={bank2DepositAmount} onChange={e => setBank2DepositAmount(e.target.value)} placeholder='Enter deposit amount' />
                 <input type='date' value={bank2DepositDate} onChange={e => setBank2DepositDate(e.target.value)} />
                 <button onClick={handleBank2Deposit} className='addPurchase-button'>Deposit</button>
@@ -1204,9 +1239,9 @@ const HomePage = () => {
                           <td style={{ padding: '6px', fontSize: '12px' }}>{e.party}</td>
                           <td style={{ padding: '6px', fontSize: '12px' }}>{e.method}</td>
                           <td style={{ padding: '6px', fontSize: '12px' }}>{e.checkNumber || '-'}</td>
-                          <td style={{ padding: '6px', fontSize: '12px', color: e.debit ? 'red' : 'black' }}>{e.debit ? `₹${e.debit.toFixed(2)}` : '-'}</td>
-                          <td style={{ padding: '6px', fontSize: '12px', color: e.credit ? 'green' : 'black' }}>{e.credit ? `₹${e.credit.toFixed(2)}` : '-'}</td>
-                          <td style={{ padding: '6px', fontSize: '12px' }}>₹{e.balance.toFixed(2)}</td>
+                          <td style={{ padding: '6px', fontSize: '12px', color: e.debit ? 'red' : 'black' }}>{e.debit ? e.debit.toFixed(2) : '-'}</td>
+                          <td style={{ padding: '6px', fontSize: '12px', color: e.credit ? 'green' : 'black' }}>{e.credit ? e.credit.toFixed(2) : '-'}</td>
+                          <td style={{ padding: '6px', fontSize: '12px' }}>{e.balance.toFixed(2)}</td>
                           <td style={{ padding: '6px' }}>
                             {e.type === 'deposit' && e.source === 'bank2Deposits' && e.isPaymentDeduction !== true
                               ? <button onClick={() => handleDeleteBank2Entry(e)} style={{ padding: '4px 6px', fontSize: '11px', color: 'white', background: '#dc3545', border: 'none', borderRadius: '3px' }}>Del</button>
@@ -1235,9 +1270,9 @@ const HomePage = () => {
               <div style={{ textAlign: 'center', marginBottom: '20px', padding: '20px', background: '#f8f9fa', borderRadius: '8px', border: '2px solid #007bff' }}>
                 <h1 style={{ fontSize: '48px', margin: '10px 0', color: '#007bff', textTransform: 'uppercase', letterSpacing: '2px' }}>{selectedEmployee}</h1>
                 <div style={{ fontSize: '24px', color: '#28a745', fontWeight: 'bold' }}>
-                  {(() => { const emp = employees.find(e => e.name === selectedEmployee); return emp ? `Remaining This Month: ₹${calculateRemainingSalary(emp, salaryTransactions).toFixed(2)}` : 'Employee not found'; })()}
+                  {(() => { const emp = employees.find(e => e.name === selectedEmployee); return emp ? `Remaining This Month: ${calculateRemainingSalary(emp, salaryTransactions).toFixed(2)}` : 'Employee not found'; })()}
                 </div>
-                {(() => { const emp = employees.find(e => e.name === selectedEmployee); return emp && emp.basicSalary ? (<div style={{ fontSize: '18px', color: '#666', marginTop: '10px' }}>Basic Salary: ₹{asNumber(emp.basicSalary).toFixed(2)} | Period: {emp.salaryPeriodStart}-{emp.salaryPeriodEnd} of month</div>) : (<div style={{ fontSize: '16px', color: '#dc3545', marginTop: '10px' }}>⚠️ Salary not configured for this employee</div>); })()}
+                {(() => { const emp = employees.find(e => e.name === selectedEmployee); return emp && emp.basicSalary ? (<div style={{ fontSize: '18px', color: '#666', marginTop: '10px' }}>Basic Salary: {asNumber(emp.basicSalary).toFixed(2)} | Period: {emp.salaryPeriodStart}-{emp.salaryPeriodEnd} of month</div>) : (<div style={{ fontSize: '16px', color: '#dc3545', marginTop: '10px' }}>⚠️ Salary not configured for this employee</div>); })()}
               </div>
             )}
             <input type='date' value={form.salaryDate} onChange={e => setForm({ ...form, salaryDate: e.target.value })} placeholder='Select Date' style={{ marginBottom: '10px' }} />
